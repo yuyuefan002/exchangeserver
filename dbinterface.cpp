@@ -1,5 +1,10 @@
 #include "dbinterface.h"
 
+long int unix_timestamp() {
+  time_t t = std::time(0);
+  long int now = static_cast<long int>(t);
+  return now;
+}
 DBINTERFACE::DBINTERFACE() {
   // Allocate & initialize a Postgres connection object
 
@@ -13,7 +18,9 @@ DBINTERFACE::DBINTERFACE() {
     throw std::string("fail to open db");
   }
 }
+
 DBINTERFACE::~DBINTERFACE() { C->disconnect(); }
+
 /*
  * execute sql
  *
@@ -30,6 +37,13 @@ int DBINTERFACE::execute(const std::string &sql) {
   }
   return 0;
 }
+/*
+ * execute and return
+ *
+ * execute sql and return required value in one transaction
+ *
+ *
+ */
 int DBINTERFACE::execute_and_return(const std::string &sql) {
   pqxx::work W(*C);
   try {
@@ -43,15 +57,45 @@ int DBINTERFACE::execute_and_return(const std::string &sql) {
     return -1;
   }
 }
+std::string
+genSQLKeyPair(std::vector<std::pair<std::string, std::string>> pairs) {
+  std::string res;
+  for (auto pair : pairs) {
+    res += pair.first + "=" + pair.second + " AND ";
+  }
+  auto pos = res.find_last_of("AND");
+  res.erase(res.begin() + pos - 2, res.end());
+  return res;
+}
 
-bool account_is_exist(pqxx::connection *C, const std::string &account_id) {
-  std::string sql =
-      "SELECT * FROM ACCOUNT WHERE ACCOUNT_ID=" + account_id + ";";
+bool is_exist(pqxx::connection *C, const std::string &sql) {
   pqxx::nontransaction N(*C);
   pqxx::result R(N.exec(sql));
-  if (R.empty())
-    return false;
-  return true;
+  auto c = R.begin();
+  return c[0].as<bool>();
+}
+/*
+ * account_is_exist
+ * Look up DB, return true if given account_id exist, else false;
+ *
+ */
+bool account_is_exist(pqxx::connection *C, const std::string &account_id) {
+  std::string sql =
+      "SELECT EXISTS (SELECT 1 FROM ACCOUNT WHERE ACCOUNT_ID=" + account_id +
+      ");";
+  return is_exist(C, sql);
+}
+/*
+ * has_the_position
+ * Look up DB, return true if given position exist, else false;
+ *
+ */
+bool has_the_position(pqxx::connection *C, const std::string &account_id,
+                      const std::string &symbol) {
+  std::string sql =
+      "SELECT EXISTS (SELECT 1 FROM POSITION WHERE OWNER_ID=" + account_id +
+      " AND SYM='" + symbol + "');";
+  return is_exist(C, sql);
 }
 
 /*
@@ -70,7 +114,7 @@ int DBINTERFACE::create_account(const std::string &account_id,
 bool amount_is_enough(pqxx::connection *C, const std::string &account_id,
                       const std::string &symbol, const std::string &number) {
   std::string sql = "SELECT SHARE FROM POSITION WHERE OWNER_ID=" + account_id +
-                    " AND SYM=" + symbol + ";";
+                    " AND SYM='" + symbol + "';";
   pqxx::nontransaction N(*C);
   pqxx::result R(N.exec(sql));
   if (R.empty())
@@ -95,8 +139,9 @@ bool balance_is_enough(pqxx::connection *C, const std::string &account_id,
 /*
  * create_order
  *
- * This function will first check if there is enough share to sell or balance to
- * buy then create the order return the order id if success, else -1
+ * This function will first check if there is enough share
+ * to sell or balance to buy
+ * then create the order return the order id if success, else -1
  */
 int DBINTERFACE::create_order(const std::string &account_id,
                               const std::string &symbol,
@@ -113,12 +158,14 @@ int DBINTERFACE::create_order(const std::string &account_id,
         throw std::string("balance is not enough");
     }
     std::string sql =
-        "INSERT INTO ORDERS(ACCOUNT_ID, SYM,SELL,PRICE,TOTAL,REST) VALUES(" +
-        account_id + ",'" + symbol + "',";
-    if (sell)
-      sql += "TRUE";
-    else
-      sql += "FALSE";
+        sell
+            ? "UPDATE POSITION SET SHARE=SHARE-" + number +
+                  " WHERE OWNER_ID=" + account_id + " AND SYM='" + symbol + "';"
+            : "UPDATE ACCOUNT SET BALANCE=BALANCE-" + price + "*" + number +
+                  " WHERE ACCOUNT_ID=" + account_id + ";";
+    sql += "INSERT INTO ORDERS(ACCOUNT_ID, SYM,SELL,PRICE,TOTAL,REST) VALUES(" +
+           account_id + ",'" + symbol + "',";
+    sql += sell ? "TRUE" : "FALSE";
     sql += "," + price + "," + number + "," + number + ") RETURNING ORDER_ID;";
 
     int order_id = execute_and_return(sql);
@@ -127,10 +174,82 @@ int DBINTERFACE::create_order(const std::string &account_id,
     return -1;
   }
 }
+std::string DBINTERFACE::create_position_sql(const std::string &account_id,
+                                             const std::string &symbol,
+                                             const std::string &amount) {
+  // check if account exist
+  if (!account_is_exist(C.get(), account_id))
+    throw std::string("account not exist");
+  std::string sql;
+  // check if there is the position
+  if (has_the_position(C.get(), account_id, symbol)) {
+    // add amount to existing symbol;
+    sql = "UPDATE POSITION SET SHARE=SHARE+" + amount +
+          " WHERE OWNER_ID=" + account_id + " AND SYM='" + symbol + "';";
+  } else {
+    // create new symbol with amount
+    sql = "INSERT INTO POSITION(OWNER_ID,SYM,SHARE) VALUES(" + account_id +
+          ",'" + symbol + "'," + amount + ");";
+  }
+  return sql;
+}
+/*
+ * create postion
+ *
+ * update share info for a given account, return 0 if success, else -1
+ */
+int DBINTERFACE::create_position(const std::string &account_id,
+                                 const std::string &symbol,
+                                 const std::string &amount) {
+  try {
+    std::string sql = create_position_sql(account_id, symbol, amount);
+    return execute(sql);
+  } catch (std::string s) {
+    return -1;
+  }
+}
+/*
+ * execute_order
+ *
+ * warning: this function will not check the correctness of given nums
+ *
+ */
+int DBINTERFACE::execute_order(const std::string &seller_id,
+                               const std::string &buyer_id,
+                               const std::string &symbol,
+                               const std::string &final_price,
+                               const std::string &final_amount,
+                               const std::string &sell_oid,
+                               const std::string &buy_oid) {
+  std::string sql = "UPDATE ACCOUNT SET BALANCE=BALANCE+" + final_price + "*" +
+                    final_amount + " WHERE ACCOUNT_ID=" + seller_id + ";";
+  sql += create_position_sql(buyer_id, symbol, final_amount);
+  sql += "UPDATE ORDERS SET REST=REST-" + final_amount +
+         " WHERE ORDER_ID=" + buy_oid + ";";
+  sql += "UPDATE ORDERS SET REST=REST-" + final_amount +
+         " WHERE ORDER_ID=" + sell_oid + ";";
+  sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + sell_oid +
+         "," + final_amount + "," + final_price + "," +
+         std::to_string(unix_timestamp()) + ");";
+  sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + buy_oid +
+         "," + final_amount + "," + final_price + "," +
+         std::to_string(unix_timestamp()) + ");";
+  return execute(sql);
+}
+
+/*
+ * cancel a order: seller
+ *
+ */
 #include <iostream>
 int main() {
   DBINTERFACE DBInterface;
   std::cout << DBInterface.create_account("1", "10000") << std::endl;
   std::cout << DBInterface.create_order("1", "BIT", "100", "100", false)
             << std::endl;
+  std::vector<std::pair<std::string, std::string>> test;
+  std::cout << DBInterface.create_position("1", "USD", "100") << std::endl;
+  // test.push_back({"OWNER_ID", "1"});
+  // test.push_back({"SYM", "BIT"});
+  // std::cout << genSQLKeyPair(test) << std::endl;
 }
