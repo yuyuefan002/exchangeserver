@@ -68,6 +68,10 @@ genSQLKeyPair(std::vector<std::pair<std::string, std::string>> pairs) {
   return res;
 }
 
+/*
+ * is_exist
+ *
+ */
 bool is_exist(pqxx::connection *C, const std::string &sql) {
   pqxx::nontransaction N(*C);
   pqxx::result R(N.exec(sql));
@@ -102,6 +106,7 @@ bool order_is_sell(pqxx::connection *C, const std::string &order_id) {
   std::string sql = "SELECT SELL FROM ORDER WHERE ORDER_ID=" + order_id + ");";
   return is_exist(C, sql);
 }
+
 /*
  * has_the_position
  * Look up DB, return true if given position exist, else false;
@@ -128,6 +133,13 @@ int DBINTERFACE::create_account(const std::string &account_id,
                     account_id + "," + balance + ");";
   return execute(sql);
 }
+
+/*
+ * amount_is_enough
+ *
+ * check whether seller has enough shares
+ *
+ */
 bool amount_is_enough(pqxx::connection *C, const std::string &account_id,
                       const std::string &symbol, const std::string &number) {
   std::string sql = "SELECT SHARE FROM POSITION WHERE OWNER_ID=" + account_id +
@@ -141,6 +153,12 @@ bool amount_is_enough(pqxx::connection *C, const std::string &account_id,
   return share >= stoi(number);
 }
 
+/*
+ * balance_is_enough
+ *
+ * check whether buyer has enough money
+ *
+ */
 bool balance_is_enough(pqxx::connection *C, const std::string &account_id,
                        const std::string &number, const std::string &price) {
   std::string sql =
@@ -190,6 +208,14 @@ int DBINTERFACE::create_order(const std::string &account_id,
   } catch (std::string s) {
     return -1;
   }
+}
+int DBINTERFACE::add_to_position(const std::string &account_id,
+                                 const std::string &symbol,
+                                 const std::string &amount) {
+  std::string sql = "UPDATE POSITION SET SHARE=SHARE+" + amount +
+                    " WHERE OWNER_ID=" + account_id + " AND SYM='" + symbol +
+                    "';";
+  return execute(sql);
 }
 std::string DBINTERFACE::create_position_sql(const std::string &account_id,
                                              const std::string &symbol,
@@ -251,14 +277,34 @@ int DBINTERFACE::execute_order(const std::string &seller_id,
   sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + buy_oid +
          "," + final_amount + "," + final_price + "," +
          std::to_string(unix_timestamp()) + ");";
+  sql += "UPDATE ORDERS SET STATUS='cl'"
+         " WHERE REST=0 AND ORDER_ID=" +
+         sell_oid + ";";
+  sql += "UPDATE ORDERS SET STATUS='cl'"
+         " WHERE REST=0 AND ORDER_ID=" +
+         buy_oid + ";";
   return execute(sql);
 }
+
+/*
+ * update order status
+ *
+ * set status to cc-cancel or cl-close
+ */
 int DBINTERFACE::update_order_status(const std::string &order_id,
                                      const std::string &status) {
-  std::string sql = "UPDATE ORDERS SET STATUS=" + status +
-                    " WHERE ORDER_ID=" + order_id + ");";
+  std::string sql = "UPDATE ORDERS SET STATUS='" + status +
+                    "', ccltm=" + std::to_string(unix_timestamp()) +
+                    " WHERE ORDER_ID=" + order_id + ";";
   return execute(sql);
 }
+
+/*
+ * look_up_order
+ *
+ * return order info
+ *
+ */
 order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
   std::string sql =
       "SELECT SYM,PRICE,SELL,REST FROM ORDERS WHERE ORDER_ID=" + order_id + ";";
@@ -274,8 +320,10 @@ order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
 }
 
 /*
- * cancel a order: seller
+ * cancel a order
  *
+ * return share back to seller
+ * return money back to buyer
  */
 int DBINTERFACE::cancel_order(const std::string &order_id,
                               const std::string &account_id) {
@@ -296,15 +344,81 @@ int DBINTERFACE::cancel_order(const std::string &order_id,
   return execute(sql);
 }
 
+order_info_t DBINTERFACE::query_order_status(const std::string &order_id) {
+  return look_up_order(C.get(), order_id);
+}
+
+/*
+ * query_order_execution
+ *
+ * return all the executions this order have
+ *
+ */
+std::vector<order_info_t>
+DBINTERFACE::query_order_execution(const std::string &order_id) {
+  std::string sql =
+      "SELECT SHARE,PRICE,TIME FROM EXECUTE WHERE ORDER_ID=" + order_id + ";";
+  pqxx::nontransaction N(*C);
+  pqxx::result R(N.exec(sql));
+  std::vector<order_info_t> executes;
+  for (auto c : R) {
+    order_info_t order;
+    order.price = c["PRICE"].as<double>();
+    order.rest = c["SHARE"].as<double>();
+    order.time = c["TIME"].as<int>();
+    executes.push_back(order);
+  }
+  return executes;
+}
+order_info_t DBINTERFACE::match(const std::string &price,
+                                const std::string &symbol, const bool &sell) {
+  std::string sql;
+  if (sell)
+    sql = "SELECT * FROM ORDERS WHERE STATUS='op' AND SELL=false AND SYM='" +
+          symbol + "'AND PRICE>=" + price + "ORDER BY PRICE DESC LIMIT 1;";
+  else
+    sql = "SELECT * FROM ORDERS WHERE STATUS='op' AND SELL=true AND SYM='" +
+          symbol + "'AND PRICE<=" + price + "ORDER BY PRICE ASC LIMIT 1;";
+  pqxx::nontransaction N(*C);
+  pqxx::result R(N.exec(sql));
+  order_info_t order;
+  auto c = R.begin();
+  if (c.empty()) {
+    order.order_id = -1;
+    return order;
+  }
+  order.account_id = c["ACCOUNT_ID"].as<int>();
+  order.order_id = c["ORDER_ID"].as<int>();
+  order.price = c["PRICE"].as<double>();
+  order.rest = c["REST"].as<double>();
+  return order;
+}
+/*
 #include <iostream>
 int main() {
   DBINTERFACE DBInterface;
-  std::cout << DBInterface.create_account("1", "10000") << std::endl;
-  std::cout << DBInterface.create_order("1", "BIT", "100", "100", false)
+  std::cout << DBInterface.create_account("2", "10000") << std::endl;
+  std::cout << DBInterface.create_order("2", "BIT", "100", "50", true)
             << std::endl;
+  //  << std::endl;
   std::vector<std::pair<std::string, std::string>> test;
-  std::cout << DBInterface.create_position("1", "USD", "100") << std::endl;
+  // std::cout << DBInterface.create_position("1", "BIT", "100") << std::endl;
+  // std::cout << DBInterface.cancel_order("1", "1");
   // test.push_back({"OWNER_ID", "1"});
   // test.push_back({"SYM", "BIT"});
   // std::cout << genSQLKeyPair(test) << std::endl;
+  // std::cout << DBInterface.execute_order("1", "2", "BIT", "100", "100", "5",
+  //                                       "6");
+  order_info_t order = DBInterface.match(
+      "100", "BIT",
+      false); std::vector<order_info_t>
+                orders = DBInterface.query_order_execution("5");
+std::cout << order.order_id << " " << order.price << std::endl;
+
+for (auto order : orders) { std::cout <<
+       order.rest
+    << " " << order.price << " " << order.time << std::endl;
 }
+
+}
+*/

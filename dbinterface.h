@@ -2,6 +2,20 @@
 #define __DBINTERFACE_H__
 #include <ctime>
 #include <pqxx/pqxx>
+
+struct _order_info_t {
+  int order_id;
+  int account_id;
+  std::string symbol;
+  std::string status;
+  double price;
+  bool sell;
+  double total;
+  double rest;
+  int time;
+};
+
+typedef struct _order_info_t order_info_t;
 class DBINTERFACE {
 private:
   std::unique_ptr<pqxx::connection> C;
@@ -29,14 +43,9 @@ public:
                     const std::string &final_amount,
                     const std::string &sell_oid, const std::string &buy_oid);
   int cancel_order(const std::string &order_id, const std::string &account_id);
+  order_info_t query_order_status(const std::string &order_id);
+  std::vector<order_info_t> query_order_execution(const std::string &order_id);
+  order_info_t match(const std::string &price, const std::string &symbol,
+                     const bool &sell);
 };
-
-struct _order_info_t {
-  std::string symbol;
-  int price;
-  bool sell;
-  double rest;
-};
-
-typedef struct _order_info_t order_info_t;
 #endif
