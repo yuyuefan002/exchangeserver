@@ -7,12 +7,13 @@ private:
   std::unique_ptr<pqxx::connection> C;
   int execute(const std::string &sql);
   int execute_and_return(const std::string &sql);
-  bool is_exist(const std::string &sql);
   int add_to_position(const std::string &account_id, const std::string &symbol,
                       const std::string &amount);
   std::string create_position_sql(const std::string &account_id,
                                   const std::string &symbol,
                                   const std::string &amount);
+  int update_order_status(const std::string &order_id,
+                          const std::string &status);
 
 public:
   DBINTERFACE();
@@ -27,5 +28,15 @@ public:
                     const std::string &symbol, const std::string &final_price,
                     const std::string &final_amount,
                     const std::string &sell_oid, const std::string &buy_oid);
+  int cancel_order(const std::string &order_id, const std::string &account_id);
 };
+
+struct _order_info_t {
+  std::string symbol;
+  int price;
+  bool sell;
+  double rest;
+};
+
+typedef struct _order_info_t order_info_t;
 #endif

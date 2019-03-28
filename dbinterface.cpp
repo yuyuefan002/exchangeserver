@@ -74,6 +74,18 @@ bool is_exist(pqxx::connection *C, const std::string &sql) {
   auto c = R.begin();
   return c[0].as<bool>();
 }
+
+/*
+ * account_is_exist
+ * Look up DB, return true if given account_id exist, else false;
+ *
+ */
+bool order_is_valid(pqxx::connection *C, const std::string &order_id) {
+  std::string sql =
+      "SELECT EXISTS (SELECT 1 FROM ORDERS WHERE STATUS='op' AND ORDER_ID=" +
+      order_id + ");";
+  return is_exist(C, sql);
+}
 /*
  * account_is_exist
  * Look up DB, return true if given account_id exist, else false;
@@ -83,6 +95,11 @@ bool account_is_exist(pqxx::connection *C, const std::string &account_id) {
   std::string sql =
       "SELECT EXISTS (SELECT 1 FROM ACCOUNT WHERE ACCOUNT_ID=" + account_id +
       ");";
+  return is_exist(C, sql);
+}
+
+bool order_is_sell(pqxx::connection *C, const std::string &order_id) {
+  std::string sql = "SELECT SELL FROM ORDER WHERE ORDER_ID=" + order_id + ");";
   return is_exist(C, sql);
 }
 /*
@@ -236,11 +253,49 @@ int DBINTERFACE::execute_order(const std::string &seller_id,
          std::to_string(unix_timestamp()) + ");";
   return execute(sql);
 }
+int DBINTERFACE::update_order_status(const std::string &order_id,
+                                     const std::string &status) {
+  std::string sql = "UPDATE ORDERS SET STATUS=" + status +
+                    " WHERE ORDER_ID=" + order_id + ");";
+  return execute(sql);
+}
+order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
+  std::string sql =
+      "SELECT SYM,PRICE,SELL,REST FROM ORDERS WHERE ORDER_ID=" + order_id + ";";
+  pqxx::nontransaction N(*C);
+  pqxx::result R(N.exec(sql));
+  auto c = R.begin();
+  order_info_t order;
+  order.symbol = c["SYM"].as<std::string>();
+  order.price = c["PRICE"].as<int>();
+  order.sell = c["SELL"].as<bool>();
+  order.rest = c["REST"].as<double>();
+  return order;
+}
 
 /*
  * cancel a order: seller
  *
  */
+int DBINTERFACE::cancel_order(const std::string &order_id,
+                              const std::string &account_id) {
+  if (!order_is_valid(C.get(), order_id))
+    return -1;
+  int status = update_order_status(order_id, "cc");
+  if (status == -1)
+    return -1;
+  order_info_t order = look_up_order(C.get(), order_id);
+  if (order.sell == true) {
+    return add_to_position(account_id, order.symbol,
+                           std::to_string(order.rest));
+  }
+  // return balance to account
+  std::string sql =
+      "UPDATE ACCOUNT SET BALANCE=" + std::to_string(order.price * order.rest) +
+      "WHERE ACCOUNT_ID=" + account_id + ";";
+  return execute(sql);
+}
+
 #include <iostream>
 int main() {
   DBINTERFACE DBInterface;
