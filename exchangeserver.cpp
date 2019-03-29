@@ -1,5 +1,5 @@
 #include "exchangeserver.h"
-
+#include <iostream>
 /*
  * match
  *
@@ -59,13 +59,15 @@ bool are_digits(const std::string &str) {
  */
 void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
   XMLPARSER XMLParser(xml);
+  rapidxml::xml_node<> *resultroot =
+      doc.allocate_node(rapidxml::node_element, "results");
+  doc.append_node(resultroot);
   rapidxml::xml_node<> *root = XMLParser.getNode();
   for (rapidxml::xml_node<> *curr = root; curr; curr = curr->next_sibling()) {
     std::string name = curr->name();
-
     // create order or position
     if (name == "create") {
-      create_handler(curr->first_node());
+      create_handler(curr->first_node(), resultroot);
     }
     // query or order or cancel
     else if (name == "transactions") {
@@ -81,6 +83,8 @@ void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
       throw std::string("invalid tag");
     }
   }
+  std::cout << doc;
+  XMLParser.visit(doc.first_node());
 }
 
 /*
@@ -154,7 +158,8 @@ void EXCHANGESERVER::transaction_handler(rapidxml::xml_node<> *root,
  * create account or position
  *
  */
-void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root) {
+void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root,
+                                    rapidxml::xml_node<> *resultroot) {
   for (rapidxml::xml_node<> *curr = root; curr; curr = curr->next_sibling()) {
     std::string name = curr->name();
     XMLPARSER XMLParser;
@@ -163,13 +168,21 @@ void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root) {
 
     // create account
     if (name == "account") {
+
       if (!are_digits(attrs["id"]) || !are_digits(attrs["balance"]))
         throw std::string("invalid id or balance");
-      DBInterface.create_account(attrs["id"], attrs["balance"]);
+      std::unordered_map<std::string, std::string> returnattrs;
+      returnattrs["id"] = attrs["id"];
+      if (DBInterface.create_account(attrs["id"], attrs["balance"]) == -1) {
+        XMLParser.append_node(resultroot, "error", returnattrs,
+                              "Failed to create account");
+      } else {
+        XMLParser.append_node(resultroot, "created", returnattrs);
+      }
     }
     // create postion
     else if (name == "symbol")
-      create_symbol(curr->first_node(), attrs["sym"]);
+      create_symbol(curr->first_node(), attrs["sym"], resultroot);
     // invalid tags
     else
       throw std::string("invalid tag");
@@ -182,18 +195,23 @@ void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root) {
  * create positions
  */
 void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
-                                   std::string &symbol) {
+                                   std::string &symbol,
+                                   rapidxml::xml_node<> *resultroot) {
   for (rapidxml::xml_node<> *curr = root; curr; curr = curr->next_sibling()) {
     std::string name = curr->name();
     std::string amount = curr->value();
     XMLPARSER XMLParser;
     std::unordered_map<std::string, std::string> attrs =
         XMLParser.getAttrs(curr);
-
+    attrs["sym"] = symbol;
     if (name == "account") {
       if (!are_digits(attrs["id"]))
         throw std::string("invalid account_id");
-      DBInterface.create_position(attrs["id"], symbol, amount);
+      if (DBInterface.create_position(attrs["id"], symbol, amount) == -1) {
+        XMLParser.append_node(resultroot, "error", attrs,
+                              "fail to create position");
+      } else
+        XMLParser.append_node(resultroot, "created", attrs);
     }
 
     else
@@ -203,17 +221,16 @@ void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
 
 int main() {
   EXCHANGESERVER exchangeserver;
-  /*
   std::string str =
       "<?xml version=\"1.0\" "
       "encoding=\"UTF-8\"?>\n<create>\n<account "
       "id=\"123456\" balance=\"1000\"/>\n<symbol sym=\"SPY\">\n<account "
-      "id=\"123456\">100000</account>\n</symbol>\n</create>\n";*/
-  std::string str = "<?xml version=\"1.0\" "
+      "id=\"123456\">100000</account>\n</symbol>\n</create>\n";
+  /*  std::string str = "<?xml version=\"1.0\" "
                     "encoding=\"UTF-8\"?>\n"
                     "<transactions id=\"2\">\n<order sym=\"BIT\" "
                     "amount=\"100\" limit=\"-100\"/>\n<query "
-                    "id=\"1\"/>\n<cancel id=\"12\"/>\n</transactions>\n";
+                    "id=\"1\"/>\n<cancel id=\"12\"/>\n</transactions>\n";*/
   std::vector<char> s(str.begin(), str.end());
   exchangeserver.xml_handler(s);
 }
