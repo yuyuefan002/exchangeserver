@@ -21,7 +21,7 @@ private:
 
 public:
   XMLPARSER(std::vector<char> &xml);
-  XMLPARSER();
+  XMLPARSER(){}
   rapidxml::xml_node<> *getNode();
   std::unordered_map<std::string, std::string>
   getAttrs(rapidxml::xml_node<> *curr);

@@ -200,9 +200,15 @@ void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
       throw std::string("invalid tag");
   }
 }
-/*
+
 int main() {
   EXCHANGESERVER exchangeserver;
-  exchangeserver.transaction("2", "BIT", "300", "100", true);
+
+  std::string str="<?xml version=\"1.0\" "
+      "encoding=\"UTF-8\"?>\n<create>\n<account "
+      "id=\"123456\" balance=\"1000\"/>\n<symbol sym=\"SPY\">\n<account "
+      "id=\"123456\">100000</account>\n</symbol>\n</create>\n";
+  std::vector<char> s(s.begin(),s.end());
+  exchangeserver.xml_handler(s);
 }
-*/
+
