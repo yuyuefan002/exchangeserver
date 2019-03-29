@@ -203,12 +203,17 @@ void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
 
 int main() {
   EXCHANGESERVER exchangeserver;
-
-  std::string str="<?xml version=\"1.0\" "
+  /*
+  std::string str =
+      "<?xml version=\"1.0\" "
       "encoding=\"UTF-8\"?>\n<create>\n<account "
       "id=\"123456\" balance=\"1000\"/>\n<symbol sym=\"SPY\">\n<account "
-      "id=\"123456\">100000</account>\n</symbol>\n</create>\n";
-  std::vector<char> s(s.begin(),s.end());
+      "id=\"123456\">100000</account>\n</symbol>\n</create>\n";*/
+  std::string str = "<?xml version=\"1.0\" "
+                    "encoding=\"UTF-8\"?>\n"
+                    "<transactions id=\"2\">\n<order sym=\"BIT\" "
+                    "amount=\"100\" limit=\"-100\"/>\n<query "
+                    "id=\"1\"/>\n<cancel id=\"12\"/>\n</transactions>\n";
+  std::vector<char> s(str.begin(), str.end());
   exchangeserver.xml_handler(s);
 }
-

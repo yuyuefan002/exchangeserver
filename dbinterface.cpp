@@ -84,10 +84,11 @@ bool is_exist(pqxx::connection *C, const std::string &sql) {
  * Look up DB, return true if given account_id exist, else false;
  *
  */
-bool order_is_valid(pqxx::connection *C, const std::string &order_id) {
+bool order_is_valid(pqxx::connection *C, const std::string &account_id,
+                    const std::string &order_id) {
   std::string sql =
       "SELECT EXISTS (SELECT 1 FROM ORDERS WHERE STATUS='op' AND ORDER_ID=" +
-      order_id + ");";
+      order_id + "AND ACCOUNT_ID=" + account_id + ");";
   return is_exist(C, sql);
 }
 /*
@@ -329,7 +330,7 @@ order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
  */
 int DBINTERFACE::cancel_order(const std::string &order_id,
                               const std::string &account_id) {
-  if (!order_is_valid(C.get(), order_id))
+  if (!order_is_valid(C.get(), account_id, order_id))
     return -1;
   int status = update_order_status(order_id, "cc");
   if (status == -1)
@@ -340,9 +341,9 @@ int DBINTERFACE::cancel_order(const std::string &order_id,
                            std::to_string(order.rest));
   }
   // return balance to account
-  std::string sql =
-      "UPDATE ACCOUNT SET BALANCE=" + std::to_string(order.price * order.rest) +
-      "WHERE ACCOUNT_ID=" + account_id + ";";
+  std::string sql = "UPDATE ACCOUNT SET BALANCE=BALANCE+" +
+                    std::to_string(order.price * order.rest) +
+                    "WHERE ACCOUNT_ID=" + account_id + ";";
   return execute(sql);
 }
 
