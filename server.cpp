@@ -59,11 +59,12 @@ std::vector<char> Server::recvall(int fd) {
     }
   }
   msg.resize(index);
-  std::vector<char> pattern{'\r', '\n'};
+  std::vector<char> pattern{'\n'};
   auto it = std::search(msg.begin(), msg.end(), pattern.begin(), pattern.end());
   std::string len_str(msg.begin(), it);
   contentlen = stoi(len_str);
-  for (it = it + 2; it != msg.end(); it++) {
+  msg.erase(msg.begin(), it + 1);
+  for (it = msg.begin(); it != msg.end(); it++) {
     contentlen--;
   }
   while (contentlen) {

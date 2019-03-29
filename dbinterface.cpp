@@ -198,10 +198,12 @@ int DBINTERFACE::create_order(const std::string &account_id,
                   " WHERE OWNER_ID=" + account_id + " AND SYM='" + symbol + "';"
             : "UPDATE ACCOUNT SET BALANCE=BALANCE-" + price + "*" + number +
                   " WHERE ACCOUNT_ID=" + account_id + ";";
-    sql += "INSERT INTO ORDERS(ACCOUNT_ID, SYM,SELL,PRICE,TOTAL,REST) VALUES(" +
-           account_id + ",'" + symbol + "',";
+    sql +=
+        "INSERT INTO ORDERS(ACCOUNT_ID, SYM,SELL,PRICE,TOTAL,REST,TM) VALUES(" +
+        account_id + ",'" + symbol + "',";
     sql += sell ? "TRUE" : "FALSE";
-    sql += "," + price + "," + number + "," + number + ") RETURNING ORDER_ID;";
+    sql += "," + price + "," + number + "," + number + "," +
+           std::to_string(unix_timestamp()) + ") RETURNING ORDER_ID;";
 
     int order_id = execute_and_return(sql);
     return order_id;
@@ -277,12 +279,12 @@ int DBINTERFACE::execute_order(const std::string &seller_id,
   sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + buy_oid +
          "," + final_amount + "," + final_price + "," +
          std::to_string(unix_timestamp()) + ");";
-  sql += "UPDATE ORDERS SET STATUS='cl'"
-         " WHERE REST=0 AND ORDER_ID=" +
-         sell_oid + ";";
-  sql += "UPDATE ORDERS SET STATUS='cl'"
-         " WHERE REST=0 AND ORDER_ID=" +
-         buy_oid + ";";
+  sql +=
+      "UPDATE ORDERS SET STATUS='cl', TM=" + std::to_string(unix_timestamp()) +
+      " WHERE REST=0 AND ORDER_ID=" + sell_oid + ";";
+  sql +=
+      "UPDATE ORDERS SET STATUS='cl', TM=" + std::to_string(unix_timestamp()) +
+      " WHERE REST=0 AND ORDER_ID=" + buy_oid + ";";
   return execute(sql);
 }
 
@@ -294,7 +296,7 @@ int DBINTERFACE::execute_order(const std::string &seller_id,
 int DBINTERFACE::update_order_status(const std::string &order_id,
                                      const std::string &status) {
   std::string sql = "UPDATE ORDERS SET STATUS='" + status +
-                    "', ccltm=" + std::to_string(unix_timestamp()) +
+                    "', tm=" + std::to_string(unix_timestamp()) +
                     " WHERE ORDER_ID=" + order_id + ";";
   return execute(sql);
 }
@@ -375,18 +377,24 @@ order_info_t DBINTERFACE::match(const std::string &price,
   std::string sql;
   if (sell)
     sql = "SELECT * FROM ORDERS WHERE STATUS='op' AND SELL=false AND SYM='" +
-          symbol + "'AND PRICE>=" + price + "ORDER BY PRICE DESC LIMIT 1;";
+          symbol + "'AND PRICE>=" + price +
+          " AND TM<=" + std::to_string(unix_timestamp()) +
+          "ORDER BY PRICE DESC LIMIT 1;";
   else
     sql = "SELECT * FROM ORDERS WHERE STATUS='op' AND SELL=true AND SYM='" +
-          symbol + "'AND PRICE<=" + price + "ORDER BY PRICE ASC LIMIT 1;";
+          symbol + "'AND PRICE<=" + price +
+          "AND TM<=" + std::to_string(unix_timestamp()) +
+          "ORDER BY PRICE ASC LIMIT 1;";
   pqxx::nontransaction N(*C);
   pqxx::result R(N.exec(sql));
   order_info_t order;
-  auto c = R.begin();
-  if (c.empty()) {
+  if (R.empty()) {
     order.order_id = -1;
     return order;
   }
+
+  auto c = R.begin();
+
   order.account_id = c["ACCOUNT_ID"].as<int>();
   order.order_id = c["ORDER_ID"].as<int>();
   order.price = c["PRICE"].as<double>();

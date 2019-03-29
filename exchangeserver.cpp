@@ -32,8 +32,9 @@ int EXCHANGESERVER::transaction(const std::string &account_id,
   }
   return 0;
 }
-
+/*
 int main() {
   EXCHANGESERVER exchangeserver;
-  exchangeserver.transaction("2", "BIT", "100", "100", false);
+  exchangeserver.transaction("2", "BIT", "300", "100", true);
 }
+*/
