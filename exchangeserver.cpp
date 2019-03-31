@@ -63,19 +63,22 @@ void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
       doc.allocate_node(rapidxml::node_element, "results");
   doc.append_node(resultroot);
   rapidxml::xml_node<> *root = XMLParser.getNode();
+  std::vector<std::string> failinfo;
+  std::vector<std::string> tags;
   for (rapidxml::xml_node<> *curr = root; curr; curr = curr->next_sibling()) {
     std::string name = curr->name();
     // create order or position
     if (name == "create") {
-      create_handler(curr->first_node(), resultroot);
+      create_handler(curr->first_node(), resultroot, tags, failinfo);
     }
     // query or order or cancel
     else if (name == "transactions") {
-      std::unordered_map<std::string, std::string> attrs =
-          XMLParser.getAttrs(curr);
-      if (!are_digits(attrs["id"]))
+      std::unordered_map<std::string, std::pair<const char *, const char *>>
+          attrs = XMLParser.getAttrs(curr);
+      if (!are_digits(attrs["id"].second))
         throw std::string("invalid account_id");
-      transaction_handler(curr->first_node(), attrs["id"]);
+      transaction_handler(curr->first_node(), attrs["id"].second, resultroot,
+                          tags, failinfo);
     }
 
     // other tags are invalid
@@ -84,7 +87,6 @@ void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
     }
   }
   std::cout << doc;
-  XMLParser.visit(doc.first_node());
 }
 
 /*
@@ -94,22 +96,41 @@ void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
  */
 void EXCHANGESERVER::create_order(
     const std::string &account_id,
-    std::unordered_map<std::string, std::string> attrs) {
+    std::unordered_map<std::string, std::pair<const char *, const char *>>
+        attrs,
+    rapidxml::xml_node<> *resultroot, std::vector<std::string> &tags,
+    std::vector<std::string> &failinfo) {
   std::string price;
   bool sell;
-  double number_p = stod(attrs["limit"]);
+  double number_p = stod(std::string(attrs["limit"].second));
   // if sell a position, limit will be negative
   if (number_p <= 0) {
     price = std::to_string(-number_p);
     sell = true;
   } else {
-    price = attrs["limit"];
+    price = attrs["limit"].second;
     sell = false;
   }
-  if (!are_digits(attrs["amount"]))
+  if (!are_digits(attrs["amount"].second))
     throw std::string("invalid amount");
   // match orders
-  match(account_id, attrs["sym"], attrs["amount"], price, sell);
+  int status = match(account_id, attrs["sym"].second, attrs["amount"].second,
+                     price, sell);
+  XMLPARSER XMLParser;
+  if (status == -1) {
+    failinfo.push_back("Failed to create order");
+    tags.push_back("error");
+    XMLParser.append_node(resultroot, *tags.rbegin(), attrs,
+                          *failinfo.rbegin());
+  } else {
+    std::string tmp = "";
+    tags.push_back("opened");
+    failinfo.push_back(std::to_string(status));
+    failinfo.push_back("id");
+    attrs["id"] = std::make_pair((*failinfo.rbegin()).c_str(),
+                                 (*(failinfo.rbegin() + 1)).c_str());
+    XMLParser.append_node(resultroot, *tags.rbegin(), attrs, tmp);
+  }
 }
 
 /*
@@ -120,30 +141,33 @@ void EXCHANGESERVER::create_order(
  *
  */
 void EXCHANGESERVER::transaction_handler(rapidxml::xml_node<> *root,
-                                         const std::string &account_id) {
+                                         const std::string &account_id,
+                                         rapidxml::xml_node<> *resultroot,
+                                         std::vector<std::string> &tags,
+                                         std::vector<std::string> &failinfo) {
   for (rapidxml::xml_node<> *curr = root; curr; curr = curr->next_sibling()) {
     std::string name = curr->name();
     XMLPARSER XMLParser;
-    std::unordered_map<std::string, std::string> attrs =
-        XMLParser.getAttrs(curr);
+    std::unordered_map<std::string, std::pair<const char *, const char *>>
+        attrs = XMLParser.getAttrs(curr);
 
     // place an order
     if (name == "order") {
-      create_order(account_id, attrs);
+      create_order(account_id, attrs, resultroot, tags, failinfo);
     }
     // query an order
     else if (name == "query") {
-      if (!are_digits(attrs["id"]))
+      if (!are_digits(attrs["id"].second))
         throw std::string("invalid id");
-      order_info_t status = DBInterface.query_order_status(attrs["id"]);
+      order_info_t status = DBInterface.query_order_status(attrs["id"].second);
       std::vector<order_info_t> executes =
-          DBInterface.query_order_execution(attrs["id"]);
+          DBInterface.query_order_execution(attrs["id"].second);
     }
     // cancel an order
     else if (name == "cancel") {
-      if (!are_digits(attrs["id"]))
+      if (!are_digits(attrs["id"].second))
         throw std::string("invalid id");
-      DBInterface.cancel_order(attrs["id"], account_id);
+      DBInterface.cancel_order(attrs["id"].second, account_id);
     }
     // invalid things
     else {
@@ -159,30 +183,41 @@ void EXCHANGESERVER::transaction_handler(rapidxml::xml_node<> *root,
  *
  */
 void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root,
-                                    rapidxml::xml_node<> *resultroot) {
+                                    rapidxml::xml_node<> *resultroot,
+                                    std::vector<std::string> &tags,
+                                    std::vector<std::string> &failinfo) {
   for (rapidxml::xml_node<> *curr = root; curr; curr = curr->next_sibling()) {
     std::string name = curr->name();
     XMLPARSER XMLParser;
-    std::unordered_map<std::string, std::string> attrs =
-        XMLParser.getAttrs(curr);
+    std::unordered_map<std::string, std::pair<const char *, const char *>>
+        attrs = XMLParser.getAttrs(curr);
 
     // create account
     if (name == "account") {
 
-      if (!are_digits(attrs["id"]) || !are_digits(attrs["balance"]))
+      if (!are_digits(attrs["id"].second) ||
+          !are_digits(attrs["balance"].second))
         throw std::string("invalid id or balance");
-      std::unordered_map<std::string, std::string> returnattrs;
+      std::unordered_map<std::string, std::pair<const char *, const char *>>
+          returnattrs;
       returnattrs["id"] = attrs["id"];
-      if (DBInterface.create_account(attrs["id"], attrs["balance"]) == -1) {
-        XMLParser.append_node(resultroot, "error", returnattrs,
-                              "Failed to create account");
+      if (DBInterface.create_account(attrs["id"].second,
+                                     attrs["balance"].second) == -1) {
+        failinfo.push_back("Failed to create account");
+        tags.push_back("eerror");
+        XMLParser.append_node(resultroot, *tags.rbegin(), returnattrs,
+                              *failinfo.rbegin());
       } else {
-        XMLParser.append_node(resultroot, "created", returnattrs);
+        tags.push_back("created");
+        std::string tmp = "";
+        XMLParser.append_node(resultroot, *tags.rbegin(), returnattrs, tmp);
       }
     }
     // create postion
-    else if (name == "symbol")
-      create_symbol(curr->first_node(), attrs["sym"], resultroot);
+    else if (name == "symbol") {
+      create_symbol(curr->first_node(), attrs["sym"], resultroot, tags,
+                    failinfo);
+    }
     // invalid tags
     else
       throw std::string("invalid tag");
@@ -195,23 +230,31 @@ void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root,
  * create positions
  */
 void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
-                                   std::string &symbol,
-                                   rapidxml::xml_node<> *resultroot) {
+                                   std::pair<const char *, const char *> symbol,
+                                   rapidxml::xml_node<> *resultroot,
+                                   std::vector<std::string> &tags,
+                                   std::vector<std::string> &failinfo) {
   for (rapidxml::xml_node<> *curr = root; curr; curr = curr->next_sibling()) {
     std::string name = curr->name();
     std::string amount = curr->value();
     XMLPARSER XMLParser;
-    std::unordered_map<std::string, std::string> attrs =
-        XMLParser.getAttrs(curr);
+    std::unordered_map<std::string, std::pair<const char *, const char *>>
+        attrs = XMLParser.getAttrs(curr);
     attrs["sym"] = symbol;
     if (name == "account") {
-      if (!are_digits(attrs["id"]))
+      if (!are_digits(attrs["id"].second))
         throw std::string("invalid account_id");
-      if (DBInterface.create_position(attrs["id"], symbol, amount) == -1) {
-        XMLParser.append_node(resultroot, "error", attrs,
-                              "fail to create position");
-      } else
-        XMLParser.append_node(resultroot, "created", attrs);
+      if (DBInterface.create_position(attrs["id"].second, symbol.second,
+                                      amount) == -1) {
+        failinfo.push_back("fail to create position");
+        tags.push_back("error");
+        XMLParser.append_node(resultroot, *tags.rbegin(), attrs,
+                              *failinfo.rbegin());
+      } else {
+        std::string tmp = "";
+        tags.push_back("created");
+        XMLParser.append_node(resultroot, *tags.rbegin(), attrs, tmp);
+      }
     }
 
     else

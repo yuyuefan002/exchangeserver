@@ -24,11 +24,13 @@ public:
   XMLPARSER(std::vector<char> &xml);
   XMLPARSER() {}
   rapidxml::xml_node<> *getNode();
-  std::unordered_map<std::string, std::string>
+  std::unordered_map<std::string, std::pair<const char *, const char *>>
   getAttrs(rapidxml::xml_node<> *curr);
-  void append_node(rapidxml::xml_node<> *root, std::string tag,
-                   std::unordered_map<std::string, std::string> attrs,
-                   std::string msg = "");
+  void append_node(
+      rapidxml::xml_node<> *root, std::string &tag,
+      std::unordered_map<std::string, std::pair<const char *, const char *>>
+          attrs,
+      std::string &msg);
   void visit(rapidxml::xml_node<> *node);
 };
 #endif

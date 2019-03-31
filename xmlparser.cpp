@@ -1,17 +1,17 @@
 #include "xmlparser.h"
 #include <iostream>
 
-void XMLPARSER::append_node(rapidxml::xml_node<> *root, std::string tag,
-                            std::unordered_map<std::string, std::string> attrs,
-                            std::string msg) {
+void XMLPARSER::append_node(
+    rapidxml::xml_node<> *root, std::string &tag,
+    std::unordered_map<std::string, std::pair<const char *, const char *>>
+        attrs,
+    std::string &msg) {
   rapidxml::xml_document<> doc;
   rapidxml::xml_node<> *child =
       doc.allocate_node(rapidxml::node_element, tag.c_str());
   for (auto attr : attrs) {
-    std::string name = attr.first;
-    std::string value = attr.second;
     child->append_attribute(
-        doc.allocate_attribute(name.c_str(), value.c_str()));
+        doc.allocate_attribute(attr.second.first, attr.second.second));
   }
   if (msg != "")
     child->value(msg.c_str());
@@ -34,12 +34,12 @@ void XMLPARSER::visit(rapidxml::xml_node<> *node) {
   }
 }
 
-std::unordered_map<std::string, std::string>
+std::unordered_map<std::string, std::pair<const char *, const char *>>
 XMLPARSER::getAttrs(rapidxml::xml_node<> *curr) {
-  std::unordered_map<std::string, std::string> hmap;
+  std::unordered_map<std::string, std::pair<const char *, const char *>> hmap;
   for (rapidxml::xml_attribute<> *attr = curr->first_attribute(); attr;
        attr = attr->next_attribute()) {
-    hmap[attr->name()] = attr->value();
+    hmap[attr->name()] = std::make_pair(attr->name(), attr->value());
   }
   return hmap;
 }
