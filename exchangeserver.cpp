@@ -348,7 +348,7 @@ void EXCHANGESERVER::handler(int newfd) {
 }
 EXCHANGESERVER::EXCHANGESERVER(const char *port) : server(port) {}
 EXCHANGESERVER::~EXCHANGESERVER() {}
-
+int EXCHANGESERVER::DBinitializer() { return DBInterface.initializer(); }
 /*
 int main() {
   EXCHANGESERVER exchangeserver;

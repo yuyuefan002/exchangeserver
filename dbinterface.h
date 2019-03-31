@@ -48,5 +48,6 @@ public:
   std::vector<order_info_t> query_order_execution(const std::string &order_id);
   order_info_t match(const std::string &price, const std::string &symbol,
                      const bool &sell);
+  int initializer();
 };
 #endif

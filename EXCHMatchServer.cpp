@@ -11,8 +11,10 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Usage:%s <port>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
-
   EXCHANGESERVER Server(argv[1]);
+  if (Server.DBinitializer() == -1) {
+    fprintf(stderr, "failed to initialize database\n");
+  }
   while (1) {
     int newfd = Server.accNewRequest();
     std::thread t = std::thread(server_func, newfd);

@@ -1,5 +1,5 @@
 #include "dbinterface.h"
-
+#include <iostream>
 long int unix_timestamp() {
   time_t t = std::time(0);
   long int now = static_cast<long int>(t);
@@ -405,6 +405,57 @@ order_info_t DBINTERFACE::match(const std::string &price,
   order.price = c["PRICE"].as<double>();
   order.rest = c["REST"].as<double>();
   return order;
+}
+int DBINTERFACE::initializer() {
+  pqxx::work W(*C);
+  try {
+    // drop table if exists
+    W.exec("DROP TABLE IF EXISTS EXECUTE;DROP TABLE IF EXISTS ORDERS;DROP "
+           "TABLE IF EXISTS POSITION;DROP TABLE IF EXISTS ACCOUNT;");
+
+    // create table ACCOUNT
+    std::string sql = "CREATE TABLE ACCOUNT(ACCOUNT_ID INT PRIMARY KEY NOT "
+                      "NULL,BALANCE DOUBLE PRECISION NOT NULL);";
+    W.exec(sql);
+
+    // create table POSITION
+    sql = "CREATE TABLE POSITION("
+          "POSITION_ID SERIAL PRIMARY KEY NOT NULL,"
+          "OWNER_ID INT REFERENCES ACCOUNT(ACCOUNT_ID),"
+          "SYM VARCHAR(20) NOT NULL,"
+          "SHARE DOUBLE PRECISION NOT NULL"
+          ");";
+    W.exec(sql);
+
+    // create table ORDERS
+    sql = "CREATE TABLE ORDERS("
+          "ORDER_ID SERIAL PRIMARY KEY NOT NULL,"
+          "ACCOUNT_ID INT REFERENCES ACCOUNT(ACCOUNT_ID),"
+          "SYM VARCHAR(20) NOT NULL,"
+          "STATUS char(2) NOT NULL DEFAULT 'op',"
+          "PRICE DOUBLE PRECISION NOT NULL,"
+          "SELL BOOLEAN NOT NULL,"
+          "TOTAL DOUBLE PRECISION NOT NULL,"
+          "REST DOUBLE PRECISION NOT NULL,"
+          "TM INT"
+          ");";
+    W.exec(sql);
+
+    // create table EXECUTE
+    sql = "CREATE TABLE EXECUTE("
+          "EXECUTE_ID SERIAL PRIMARY KEY NOT NULL,"
+          "ORDER_ID INT REFERENCES ORDERS(ORDER_ID),"
+          "SHARE DOUBLE PRECISION NOT NULL,"
+          "PRICE DOUBLE PRECISION NOT NULL,"
+          "TIME INT NOT NULL"
+          ");";
+    W.exec(sql);
+    W.commit();
+  } catch (const std::exception &e) {
+    W.abort();
+    return -1;
+  }
+  return 0;
 }
 /*
 #include <iostream>

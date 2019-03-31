@@ -44,6 +44,7 @@ private:
 public:
   EXCHANGESERVER(const char *port);
   EXCHANGESERVER() {}
+  int DBinitializer();
   ~EXCHANGESERVER();
   int accNewRequest();
   void handler(int newfd);
