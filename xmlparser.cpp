@@ -1,21 +1,20 @@
 #include "xmlparser.h"
 #include <iostream>
 
-void XMLPARSER::append_node(
-    rapidxml::xml_node<> *root, std::string &tag,
+rapidxml::xml_node<> *XMLPARSER::append_node(
+    rapidxml::xml_document<> &doc, rapidxml::xml_node<> *root, const char *tag,
     std::unordered_map<std::string, std::pair<const char *, const char *>>
         attrs,
-    std::string &msg) {
-  rapidxml::xml_document<> doc;
-  rapidxml::xml_node<> *child =
-      doc.allocate_node(rapidxml::node_element, tag.c_str());
+    const char *msg) {
+  rapidxml::xml_node<> *child = doc.allocate_node(rapidxml::node_element, tag);
   for (auto attr : attrs) {
     child->append_attribute(
         doc.allocate_attribute(attr.second.first, attr.second.second));
   }
-  if (msg != "")
-    child->value(msg.c_str());
+  if (msg)
+    child->value(msg);
   root->append_node(child);
+  return child;
 }
 
 void XMLPARSER::visit(rapidxml::xml_node<> *node) {

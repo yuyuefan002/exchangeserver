@@ -309,8 +309,7 @@ int DBINTERFACE::update_order_status(const std::string &order_id,
  *
  */
 order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
-  std::string sql =
-      "SELECT SYM,PRICE,SELL,REST FROM ORDERS WHERE ORDER_ID=" + order_id + ";";
+  std::string sql = "SELECT *FROM ORDERS WHERE ORDER_ID=" + order_id + ";";
   pqxx::nontransaction N(*C);
   pqxx::result R(N.exec(sql));
   auto c = R.begin();
@@ -319,6 +318,9 @@ order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
   order.price = c["PRICE"].as<int>();
   order.sell = c["SELL"].as<bool>();
   order.rest = c["REST"].as<double>();
+  order.status = c["STATUS"].as<std::string>();
+  order.time = c["TM"].as<int>();
+  order.total = c["TOTAL"].as<double>();
   return order;
 }
 
