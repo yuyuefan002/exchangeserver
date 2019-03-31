@@ -1,6 +1,14 @@
 #include "exchangeserver.h"
 #include <iostream>
 
+void EXCHANGESERVER::errorTag(rapidxml::xml_node<> *resultroot,
+                              std::string info) {
+  XMLPARSER XMLParser;
+  char *name = doc.allocate_string("error");
+  char *msg = doc.allocate_string(info.c_str());
+  XMLParser.append_node(doc, resultroot, name, {}, msg);
+}
+
 /*
  * appendAttrs
  *
@@ -91,13 +99,13 @@ void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
       std::unordered_map<std::string, std::pair<const char *, const char *>>
           attrs = XMLParser.getAttrs(curr);
       if (!are_digits(attrs["id"].second))
-        throw std::string("invalid account_id");
+        errorTag(resultroot, "Invalid accound id");
       transaction_handler(curr->first_node(), attrs["id"].second, resultroot);
     }
 
     // other tags are invalid
     else {
-      throw std::string("invalid tag");
+      errorTag(resultroot, "Invalid tag");
     }
   }
   std::cout << doc;
@@ -119,7 +127,7 @@ void EXCHANGESERVER::create_order(
       number_p <= 0 ? std::to_string(-number_p) : attrs["limit"].second;
   bool sell = number_p <= 0 ? true : false;
   if (!are_digits(attrs["amount"].second))
-    throw std::string("invalid amount");
+    errorTag(resultroot, "Invalid amount");
   // match orders
   int status = match(account_id, attrs["sym"].second, attrs["amount"].second,
                      price, sell);
@@ -218,14 +226,14 @@ void EXCHANGESERVER::transaction_handler(rapidxml::xml_node<> *root,
     // query an order
     else if (name == "query") {
       if (!are_digits(attrs["id"].second))
-        throw std::string("invalid id");
+        errorTag(resultroot, "Invalid ID");
       query_order_first(doc, resultroot, "status", attrs["id"].second, true,
                         attrs);
     }
     // cancel an order
     else if (name == "cancel") {
       if (!are_digits(attrs["id"].second))
-        throw std::string("invalid id");
+        errorTag(resultroot, "Invalid id");
       int status = DBInterface.cancel_order(attrs["id"].second, account_id);
       if (status == -1) {
         XMLParser.append_node(doc, resultroot, "error", attrs,
@@ -236,7 +244,7 @@ void EXCHANGESERVER::transaction_handler(rapidxml::xml_node<> *root,
     }
     // invalid things
     else {
-      throw std::string("invalid tag");
+      errorTag(resultroot, "Invalid tag");
     }
   }
 }
@@ -260,7 +268,7 @@ void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root,
 
       if (!are_digits(attrs["id"].second) ||
           !are_digits(attrs["balance"].second))
-        throw std::string("invalid id or balance");
+        errorTag(resultroot, "Invalid id or balance");
       std::unordered_map<std::string, std::pair<const char *, const char *>>
           returnattrs;
       returnattrs["id"] = attrs["id"];
@@ -279,8 +287,11 @@ void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root,
       create_symbol(curr->first_node(), attrs["sym"], resultroot);
     }
     // invalid tags
-    else
-      throw std::string("invalid tag");
+    else {
+      char *name = doc.allocate_string("error");
+      char *msg = doc.allocate_string("Invalid tag");
+      XMLParser.append_node(doc, resultroot, name, {}, msg);
+    }
   }
 }
 
@@ -301,7 +312,8 @@ void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
     attrs["sym"] = symbol;
     if (name == "account") {
       if (!are_digits(attrs["id"].second))
-        throw std::string("invalid account_id");
+        errorTag(resultroot, "Invalid account id");
+
       if (DBInterface.create_position(attrs["id"].second, symbol.second,
                                       amount) == -1) {
         char *name = doc.allocate_string("error");
@@ -314,7 +326,7 @@ void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
     }
 
     else
-      throw std::string("invalid tag");
+      errorTag(resultroot, "Invalid tag");
   }
 }
 

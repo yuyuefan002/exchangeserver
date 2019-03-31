@@ -9,6 +9,7 @@ class EXCHANGESERVER {
 private:
   DBINTERFACE DBInterface;
   rapidxml::xml_document<> doc;
+  void errorTag(rapidxml::xml_node<> *resultroot, std::string info);
   void create_order(
       const std::string &account_id,
       std::unordered_map<std::string, std::pair<const char *, const char *>>

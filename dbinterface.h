@@ -32,6 +32,7 @@ private:
 public:
   DBINTERFACE();
   ~DBINTERFACE();
+  std::string errmsg;
   int create_account(const std::string &account_id, const std::string &balance);
   int create_order(const std::string &account_id, const std::string &symbol,
                    const std::string &number, const std::string &price,

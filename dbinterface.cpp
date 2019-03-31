@@ -209,6 +209,7 @@ int DBINTERFACE::create_order(const std::string &account_id,
     int order_id = execute_and_return(sql);
     return order_id;
   } catch (std::string s) {
+    errmsg = s;
     return -1;
   }
 }
@@ -251,6 +252,7 @@ int DBINTERFACE::create_position(const std::string &account_id,
     std::string sql = create_position_sql(account_id, symbol, amount);
     return execute(sql);
   } catch (std::string s) {
+    errmsg = s;
     return -1;
   }
 }
