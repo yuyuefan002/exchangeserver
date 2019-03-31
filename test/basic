@@ -1,0 +1,1 @@
+echo -ne "165\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"123457\" balance=\"10000\"/>\n<symbol sym=\"SPY\">\n<account id=\"123456\">1000000</account>\n</symbol>\n</create>\n" | nc localhost 8080
