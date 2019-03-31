@@ -108,7 +108,6 @@ void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
       errorTag(resultroot, "Invalid tag");
     }
   }
-  std::cout << doc;
 }
 
 /*
@@ -330,6 +329,27 @@ void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
   }
 }
 
+int EXCHANGESERVER::accNewRequest() {
+  int newfd = server.acceptNewConn();
+  return newfd;
+}
+std::vector<char> EXCHANGESERVER::genResponse() {
+  std::stringstream ss;
+  ss << doc;
+  std::string str = ss.str();
+  std::vector<char> response(str.begin(), str.end());
+  return response;
+}
+void EXCHANGESERVER::handler(int newfd) {
+  std::vector<char> xml = server.receiveData(newfd);
+  xml_handler(xml);
+  std::vector<char> response = genResponse();
+  server.sendData(newfd, response);
+}
+EXCHANGESERVER::EXCHANGESERVER(const char *port) : server(port) {}
+EXCHANGESERVER::~EXCHANGESERVER() {}
+
+/*
 int main() {
   EXCHANGESERVER exchangeserver;
   std::string str =
@@ -337,12 +357,13 @@ int main() {
       "encoding=\"UTF-8\"?>\n<create>\n<account "
       "id=\"123456\" balance=\"1000\"/>\n<symbol sym=\"SPY\">\n<account "
       "id=\"123456\">100000</account>\n</symbol>\n</create>\n";
-  /*  std::string str = "<?xml version=\"1.0\" "
+    std::string str = "<?xml version=\"1.0\" "
                     "encoding=\"UTF-8\"?>\n"
                     "<transactions id=\"2\">\n<order sym=\"BIT\" "
                     "amount=\"100\" limit=\"100\"/>\n<query "
-                    "id=\"1\"/>\n<cancel id=\"12\"/>\n</transactions>\n";*/
-  std::vector<char> s(str.begin(), str.end());
-  s.push_back('\0');
-  exchangeserver.xml_handler(s);
+                    "id=\"1\"/>\n<cancel id=\"12\"/>\n</transactions>\n";
+std::vector<char> s(str.begin(), str.end());
+s.push_back('\0');
+exchangeserver.xml_handler(s);
 }
+*/

@@ -47,23 +47,23 @@ std::vector<char> Server::recvall(int fd) {
   std::vector<char> msg;
   size_t index = 0;
   int contentlen = 0;
-  Helper helper;
-  while (!helper.containNewLine(msg)) {
-    if (msg.size() < index + MAXDATASIZE)
-      msg.resize(index + MAXDATASIZE);
-    int nbytes;
-    if ((nbytes = recv(fd, &msg.data()[index], MAXDATASIZE - 1, 0)) <= 0) {
-      return std::vector<char>();
-    } else {
-      index += nbytes;
-    }
+  // Helper helper;
+  if (msg.size() < index + MAXDATASIZE)
+    msg.resize(index + MAXDATASIZE);
+  int nbytes;
+  if ((nbytes = recv(fd, &msg.data()[index], MAXDATASIZE - 1, 0)) <= 0) {
+    return std::vector<char>();
+  } else {
+    index += nbytes;
   }
-  msg.resize(index);
+
   std::vector<char> pattern{'\n'};
   auto it = std::search(msg.begin(), msg.end(), pattern.begin(), pattern.end());
   std::string len_str(msg.begin(), it);
   contentlen = stoi(len_str);
   msg.erase(msg.begin(), it + 1);
+  index -= (it + 1 - msg.begin());
+  msg.resize(index);
   for (it = msg.begin(); it != msg.end(); it++) {
     contentlen--;
   }

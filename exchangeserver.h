@@ -2,11 +2,13 @@
 #define __EXCHANGESERVER_H__
 #include "dbinterface.h"
 #include "rapidxml_print.hpp"
+#include "server.h"
 #include "xmlparser.h"
 #include <sstream>
 #include <string>
 class EXCHANGESERVER {
 private:
+  Server server;
   DBINTERFACE DBInterface;
   rapidxml::xml_document<> doc;
   void errorTag(rapidxml::xml_node<> *resultroot, std::string info);
@@ -36,9 +38,15 @@ private:
       std::string tagname, std::string id, bool checkopen,
       std::unordered_map<std::string, std::pair<const char *, const char *>>
           attrs);
+  std::vector<char> genResponse();
+  void xml_handler(std::vector<char> &xml);
 
 public:
-  void xml_handler(std::vector<char> &xml);
+  EXCHANGESERVER(const char *port);
+  EXCHANGESERVER() {}
+  ~EXCHANGESERVER();
+  int accNewRequest();
+  void handler(int newfd);
 };
 
 #endif
