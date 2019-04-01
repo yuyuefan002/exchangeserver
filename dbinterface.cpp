@@ -33,6 +33,7 @@ int DBINTERFACE::execute(const std::string &sql) {
     W.commit();
   } catch (const std::exception &e) {
     W.abort();
+    throw std::string("Database error");
     return -1;
   }
   return 0;
@@ -54,6 +55,7 @@ int DBINTERFACE::execute_and_return(const std::string &sql) {
     return c["ORDER_ID"].as<int>();
   } catch (const std::exception &e) {
     W.abort();
+    throw std::string("Database error");
     return -1;
   }
 }
@@ -128,11 +130,16 @@ bool has_the_position(pqxx::connection *C, const std::string &account_id,
  */
 int DBINTERFACE::create_account(const std::string &account_id,
                                 const std::string &balance) {
-  if (account_is_exist(C.get(), account_id))
+  try {
+    if (account_is_exist(C.get(), account_id))
+      return -1;
+    std::string sql = "INSERT INTO ACCOUNT(ACCOUNT_ID, BALANCE) VALUES(" +
+                      account_id + "," + balance + ");";
+    return execute(sql);
+  } catch (std::string e) {
+    errmsg = e;
     return -1;
-  std::string sql = "INSERT INTO ACCOUNT(ACCOUNT_ID, BALANCE) VALUES(" +
-                    account_id + "," + balance + ");";
-  return execute(sql);
+  }
 }
 
 /*
@@ -216,10 +223,15 @@ int DBINTERFACE::create_order(const std::string &account_id,
 int DBINTERFACE::add_to_position(const std::string &account_id,
                                  const std::string &symbol,
                                  const std::string &amount) {
-  std::string sql = "UPDATE POSITION SET SHARE=SHARE+" + amount +
-                    " WHERE OWNER_ID=" + account_id + " AND SYM='" + symbol +
-                    "';";
-  return execute(sql);
+  try {
+    std::string sql = "UPDATE POSITION SET SHARE=SHARE+" + amount +
+                      " WHERE OWNER_ID=" + account_id + " AND SYM='" + symbol +
+                      "';";
+    return execute(sql);
+  } catch (std::string e) {
+    errmsg = e;
+    return -1;
+  }
 }
 std::string DBINTERFACE::create_position_sql(const std::string &account_id,
                                              const std::string &symbol,
@@ -269,26 +281,32 @@ int DBINTERFACE::execute_order(const std::string &seller_id,
                                const std::string &final_amount,
                                const std::string &sell_oid,
                                const std::string &buy_oid) {
-  std::string sql = "UPDATE ACCOUNT SET BALANCE=BALANCE+" + final_price + "*" +
-                    final_amount + " WHERE ACCOUNT_ID=" + seller_id + ";";
-  sql += create_position_sql(buyer_id, symbol, final_amount);
-  sql += "UPDATE ORDERS SET REST=REST-" + final_amount +
-         " WHERE ORDER_ID=" + buy_oid + ";";
-  sql += "UPDATE ORDERS SET REST=REST-" + final_amount +
-         " WHERE ORDER_ID=" + sell_oid + ";";
-  sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + sell_oid +
-         "," + final_amount + "," + final_price + "," +
-         std::to_string(unix_timestamp()) + ");";
-  sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + buy_oid +
-         "," + final_amount + "," + final_price + "," +
-         std::to_string(unix_timestamp()) + ");";
-  sql +=
-      "UPDATE ORDERS SET STATUS='cl', TM=" + std::to_string(unix_timestamp()) +
-      " WHERE REST=0 AND ORDER_ID=" + sell_oid + ";";
-  sql +=
-      "UPDATE ORDERS SET STATUS='cl', TM=" + std::to_string(unix_timestamp()) +
-      " WHERE REST=0 AND ORDER_ID=" + buy_oid + ";";
-  return execute(sql);
+  try {
+    std::string sql = "UPDATE ACCOUNT SET BALANCE=BALANCE+" + final_price +
+                      "*" + final_amount + " WHERE ACCOUNT_ID=" + seller_id +
+                      ";";
+    sql += create_position_sql(buyer_id, symbol, final_amount);
+    sql += "UPDATE ORDERS SET REST=REST-" + final_amount +
+           " WHERE ORDER_ID=" + buy_oid + ";";
+    sql += "UPDATE ORDERS SET REST=REST-" + final_amount +
+           " WHERE ORDER_ID=" + sell_oid + ";";
+    sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + sell_oid +
+           "," + final_amount + "," + final_price + "," +
+           std::to_string(unix_timestamp()) + ");";
+    sql += "INSERT INTO EXECUTE(ORDER_ID,SHARE,PRICE,TIME) VALUES(" + buy_oid +
+           "," + final_amount + "," + final_price + "," +
+           std::to_string(unix_timestamp()) + ");";
+    sql += "UPDATE ORDERS SET STATUS='cl', TM=" +
+           std::to_string(unix_timestamp()) +
+           " WHERE REST=0 AND ORDER_ID=" + sell_oid + ";";
+    sql += "UPDATE ORDERS SET STATUS='cl', TM=" +
+           std::to_string(unix_timestamp()) +
+           " WHERE REST=0 AND ORDER_ID=" + buy_oid + ";";
+    return execute(sql);
+  } catch (std::string e) {
+    errmsg = e;
+    return -1;
+  }
 }
 
 /*
@@ -298,10 +316,15 @@ int DBINTERFACE::execute_order(const std::string &seller_id,
  */
 int DBINTERFACE::update_order_status(const std::string &order_id,
                                      const std::string &status) {
-  std::string sql = "UPDATE ORDERS SET STATUS='" + status +
-                    "', tm=" + std::to_string(unix_timestamp()) +
-                    " WHERE ORDER_ID=" + order_id + ";";
-  return execute(sql);
+  try {
+    std::string sql = "UPDATE ORDERS SET STATUS='" + status +
+                      "', tm=" + std::to_string(unix_timestamp()) +
+                      " WHERE ORDER_ID=" + order_id + ";";
+    return execute(sql);
+  } catch (std::string e) {
+    errmsg = e;
+    return -1;
+  }
 }
 
 /*
@@ -334,21 +357,26 @@ order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
  */
 int DBINTERFACE::cancel_order(const std::string &order_id,
                               const std::string &account_id) {
-  if (!order_is_valid(C.get(), account_id, order_id))
+  try {
+    if (!order_is_valid(C.get(), account_id, order_id))
+      return -1;
+    int status = update_order_status(order_id, "cc");
+    if (status == -1)
+      return -1;
+    order_info_t order = look_up_order(C.get(), order_id);
+    if (order.sell == true) {
+      return add_to_position(account_id, order.symbol,
+                             std::to_string(order.rest));
+    }
+    // return balance to account
+    std::string sql = "UPDATE ACCOUNT SET BALANCE=BALANCE+" +
+                      std::to_string(order.price * order.rest) +
+                      "WHERE ACCOUNT_ID=" + account_id + ";";
+    return execute(sql);
+  } catch (std::string e) {
+    errmsg = e;
     return -1;
-  int status = update_order_status(order_id, "cc");
-  if (status == -1)
-    return -1;
-  order_info_t order = look_up_order(C.get(), order_id);
-  if (order.sell == true) {
-    return add_to_position(account_id, order.symbol,
-                           std::to_string(order.rest));
   }
-  // return balance to account
-  std::string sql = "UPDATE ACCOUNT SET BALANCE=BALANCE+" +
-                    std::to_string(order.price * order.rest) +
-                    "WHERE ACCOUNT_ID=" + account_id + ";";
-  return execute(sql);
 }
 
 order_info_t DBINTERFACE::query_order_status(const std::string &order_id) {

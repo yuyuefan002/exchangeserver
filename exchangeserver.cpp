@@ -133,7 +133,7 @@ void EXCHANGESERVER::create_order(
   XMLPARSER XMLParser;
   if (status == -1) {
     char *name = doc.allocate_string("error");
-    char *msg = doc.allocate_string("Failed to create order");
+    char *msg = doc.allocate_string(DBInterface.errmsg.c_str());
     XMLParser.append_node(doc, resultroot, name, attrs, msg);
   } else {
     char *name = doc.allocate_string("opened");
@@ -235,8 +235,8 @@ void EXCHANGESERVER::transaction_handler(rapidxml::xml_node<> *root,
         errorTag(resultroot, "Invalid id");
       int status = DBInterface.cancel_order(attrs["id"].second, account_id);
       if (status == -1) {
-        XMLParser.append_node(doc, resultroot, "error", attrs,
-                              "FAILED to cancel the order");
+        char *errmsg = doc.allocate_string(DBInterface.errmsg.c_str());
+        XMLParser.append_node(doc, resultroot, "error", attrs, errmsg);
       } else
         query_order_first(doc, resultroot, "canceled", attrs["id"].second,
                           false, attrs);
@@ -274,7 +274,7 @@ void EXCHANGESERVER::create_handler(rapidxml::xml_node<> *root,
       if (DBInterface.create_account(attrs["id"].second,
                                      attrs["balance"].second) == -1) {
         char *name = doc.allocate_string("error");
-        char *msg = doc.allocate_string("Failed to create account");
+        char *msg = doc.allocate_string(DBInterface.errmsg.c_str());
         XMLParser.append_node(doc, resultroot, name, returnattrs, msg);
       } else {
         char *name = doc.allocate_string("created");
@@ -316,7 +316,7 @@ void EXCHANGESERVER::create_symbol(rapidxml::xml_node<> *root,
       if (DBInterface.create_position(attrs["id"].second, symbol.second,
                                       amount) == -1) {
         char *name = doc.allocate_string("error");
-        char *msg = doc.allocate_string("Failed to create positon");
+        char *msg = doc.allocate_string(DBInterface.errmsg.c_str());
         XMLParser.append_node(doc, resultroot, name, attrs, msg);
       } else {
         char *name = doc.allocate_string("created");
