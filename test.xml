@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<create>
+  <account id="123456" balance="1000"/>
+  <symbol sym="SPY">
+    <account id="123456">100000</account>
+  </symbol>
+</create>
+<transactions id="1">
+<order sym="SYM" amount="100" limit="100"/>
+<query id="1">
+  <cancel id="1">
+  </transactions>
