@@ -30,6 +30,7 @@ void appendAttrs(
  * use the given order to match existing orders until no more can be matched
  *
  */
+std::mutex mtx;
 int EXCHANGESERVER::match(const std::string &account_id,
                           const std::string &symbol, const std::string &amount,
                           const std::string &price, const bool &sell) {
@@ -38,8 +39,13 @@ int EXCHANGESERVER::match(const std::string &account_id,
   if (id == -1)
     return -1;
   // loop until no more can be matched
-  while (amount_n) {
+  while (1) {
     // look up one matching order
+    std::lock_guard<std::mutex> lck(mtx);
+    order_info_t newstatus = DBInterface.query_order_status(std::to_string(id));
+    amount_n = newstatus.rest;
+    if (amount_n <= 0)
+      break;
     order_info_t order = DBInterface.match(price, symbol, sell);
     if (order.order_id == -1)
       break;
@@ -58,7 +64,6 @@ int EXCHANGESERVER::match(const std::string &account_id,
     DBInterface.execute_order(seller_id, buyer_id, symbol,
                               std::to_string(order.price), final_amount,
                               sell_oid, buy_oid);
-    amount_n -= stod(final_amount);
   }
   return id;
 }

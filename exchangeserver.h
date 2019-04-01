@@ -4,6 +4,7 @@
 #include "rapidxml_print.hpp"
 #include "server.h"
 #include "xmlparser.h"
+#include <mutex>
 #include <sstream>
 #include <string>
 class EXCHANGESERVER {
