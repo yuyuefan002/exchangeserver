@@ -337,10 +337,15 @@ order_info_t look_up_order(pqxx::connection *C, const std::string &order_id) {
   std::string sql = "SELECT *FROM ORDERS WHERE ORDER_ID=" + order_id + ";";
   pqxx::nontransaction N(*C);
   pqxx::result R(N.exec(sql));
-  auto c = R.begin();
   order_info_t order;
+  if (R.empty()) {
+    order.order_id = -1;
+    return order;
+  }
+  auto c = R.begin();
+
   order.symbol = c["SYM"].as<std::string>();
-  order.price = c["PRICE"].as<int>();
+  order.price = c["PRICE"].as<double>();
   order.sell = c["SELL"].as<bool>();
   order.rest = c["REST"].as<double>();
   order.status = c["STATUS"].as<std::string>();

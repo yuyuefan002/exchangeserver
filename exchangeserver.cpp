@@ -179,7 +179,14 @@ void EXCHANGESERVER::query_order_second(
         &attrs,
     rapidxml::xml_node<> *resultroot, bool checkopen) {
   XMLPARSER XMLParser;
-  order_info_t status = DBInterface.query_order_status(attrs["id"].second);
+  std::string id = attrs["id"].second;
+  order_info_t status = DBInterface.query_order_status(id);
+  if (status.order_id == -1) {
+    char *tag = doc.allocate_string("error");
+    char *msg = doc.allocate_string("No order can be found");
+    XMLParser.append_node(doc, resultroot, tag, {}, msg);
+    return;
+  }
   std::vector<order_info_t> executes =
       DBInterface.query_order_execution(attrs["id"].second);
   char *tag = doc.allocate_string("open");
