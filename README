@@ -1,7 +1,7 @@
 Match Exchanging Server
 This is a piece of software which will match buy and sell orders for a stock/commodities market.
 This software just works as a server, if you want to use it. You should send XML request to it by yourself.
-
+Note that the database will be initialized every time you start the server.
 A valid request is consist of two part, the first line is total number of the xml body, the rest of xml is request.
 
 e.g.
