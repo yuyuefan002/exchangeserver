@@ -15,7 +15,7 @@ DBINTERFACE::DBINTERFACE() {
   if (C->is_open()) {
     //  cout << "Opened database successfully: " << C->dbname() << endl;
   } else {
-    throw std::string("fail to open db");
+    throw std::string("Fail to open db");
   }
 }
 
@@ -132,7 +132,7 @@ int DBINTERFACE::create_account(const std::string &account_id,
                                 const std::string &balance) {
   try {
     if (account_is_exist(C.get(), account_id))
-      return -1;
+      throw std::string("Account already exists");
     std::string sql = "INSERT INTO ACCOUNT(ACCOUNT_ID, BALANCE) VALUES(" +
                       account_id + "," + balance + ");";
     return execute(sql);
@@ -194,11 +194,11 @@ int DBINTERFACE::create_order(const std::string &account_id,
     if (sell) {
       // check if amount is enough
       if (!amount_is_enough(C.get(), account_id, symbol, number))
-        throw std::string("amount is not enough");
+        throw std::string("Amount is not enough");
     } else {
       // check if balance is enough
       if (!balance_is_enough(C.get(), account_id, number, price))
-        throw std::string("balance is not enough");
+        throw std::string("Balance is not enough");
     }
     std::string sql =
         sell
@@ -238,7 +238,7 @@ std::string DBINTERFACE::create_position_sql(const std::string &account_id,
                                              const std::string &amount) {
   // check if account exist
   if (!account_is_exist(C.get(), account_id))
-    throw std::string("account not exist");
+    throw std::string("Account is not exist");
   std::string sql;
   // check if there is the position
   if (has_the_position(C.get(), account_id, symbol)) {
@@ -364,7 +364,7 @@ int DBINTERFACE::cancel_order(const std::string &order_id,
                               const std::string &account_id) {
   try {
     if (!order_is_valid(C.get(), account_id, order_id))
-      return -1;
+      throw std::string("No order can be found");
     int status = update_order_status(order_id, "cc");
     if (status == -1)
       return -1;

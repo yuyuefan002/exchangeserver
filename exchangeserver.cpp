@@ -159,10 +159,18 @@ void EXCHANGESERVER::query_order_first(
     std::unordered_map<std::string, std::pair<const char *, const char *>>
         attrs) {
   XMLPARSER XMLParser;
-  char *tag = doc.allocate_string(tagname.c_str());
   std::unordered_map<std::string, std::pair<const char *, const char *>>
       returnattrs;
   appendAttrs(doc, returnattrs, "id", id);
+  order_info_t status = DBInterface.query_order_status(id);
+  if (status.order_id == -1) {
+    char *tag = doc.allocate_string("error");
+    char *msg = doc.allocate_string("No order can be found");
+    XMLParser.append_node(doc, resultroot, tag, returnattrs, msg);
+    return;
+  }
+  char *tag = doc.allocate_string(tagname.c_str());
+
   rapidxml::xml_node<> *child =
       XMLParser.append_node(doc, resultroot, tag, returnattrs, nullptr);
   query_order_second(attrs, child, checkopen);
