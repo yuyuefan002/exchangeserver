@@ -1,0 +1,2 @@
+1.RapidXml use pointers to take values into node, therefore, the values should exist as long as the doc file.
+2.I use lock to guard the match part to prevent new order match the current order.
