@@ -1,1 +1,2 @@
 echo -ne "165\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"123457\" balance=\"10000\"/>\n<symbol sym=\"SPY\">\n<account id=\"123456\">1000000</account>\n</symbol>\n</create>\n" | nc localhost 8080
+echo -ne "159\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<transactions id=\"2\">\n<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n<query id=\"1\"/>\n<cancel id=\"1\"/>\n</transactions>\n" | nc localhost 8080
