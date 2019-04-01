@@ -18,9 +18,8 @@ int main(int argc, char **argv) {
   while (1) {
     int newfd = Server.accNewRequest();
     server_func(newfd);
-    //std::thread t = std::thread(server_func, newfd);
-    //t.detach();
-    // Server.handler(newfd);
+    // std::thread t = std::thread(server_func, newfd);
+    // t.detach();
   }
   return EXIT_SUCCESS;
 }

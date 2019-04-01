@@ -1,0 +1,150 @@
+Match Exchanging Server
+This is a piece of software which will match buy and sell orders for a stock/commodities market.
+This software just works as a server, if you want to use it. You should send XML request to it by yourself.
+
+A valid request is consist of two part, the first line is total number of the xml body, the rest of xml is request.
+
+e.g.
+
+173
+<?xml version="1.0" encoding="UTF-8"?>
+<create>
+	<account id="123456" balance="1000"/>
+	<symbol sym="SPY">
+		<account id="123456">100000</account>
+	</symbol>
+</create>
+
+Note that we take tab into account. Use wc to get the correct number.
+Note that you must provide correct characters number, or the server will keep waiting.
+
+There are some terms we should agree on at first.
+
+Symbol - A symbol identifies a particular stock or commodity. A symbol will be a sequence of 1
+or more alphanumeric characters. For example, SPY is a symbol (for the S&P 500 index),
+as is BTC (for bitcoin). For our exchange, T5asdf would also be a valid symbol.
+
+Position - A position is a symbol and the amount of that symbol owned. The amount may be
+fractional. If the amount is positive, the position is called “long” (meaning you own the
+stock). While real trading also allows the amount to be negative—which is called
+“short”—we disallow this behavior. A short position arises when you sell stock that you
+do not own (called a short sale). Short sales are not allowed in our market.
+
+Account - An account is identified by a globally unique account number (sequence of one or more
+base-10 digits). An account contains, a current balance (in US dollars) and a (possibly
+empty) set of positions. The account balance must never become negative: a transaction
+which would cause a negative account balance cannot be processed. Likewise, any short
+sale is also rejected.
+
+Order - An order is a request to buy or sell. An order contains the symbol to be traded, the
+amount to purchase (a negative amount means to sell), and a limit price. This price is the
+maximum price at which the symbol may be purchased (for buy order), or the minimum
+price at which the symbol may be sold (for sell orders). When a Buy order is placed, the
+total cost (shares * price) is deducted from the buyer’s account (if insufficient funds are
+available, the order is rejected). When a sell order executes (see below), the seller’s
+account is credited for the sale price. When a sell order is placed, the shares are deducted
+from the seller’s account (if insufficient shares are available, the order is rejected). When
+a buy order executes, the buyer’s account is credited the shares of the symbol being
+purchased.
+
+Open Order - When an order is first placed, it is “open.” This state basically means that you need
+to find the matching order to finish this transaction.
+
+Match Orders - A buy order can be matched with a sell order, when (a) both orders are open (b)
+they are for the same symbol (c) their limit prices are compatible. Compatible prices
+means that there exists a price which satisfies the limit restrictions (as described above)
+of both orders. That is, the sell order’s limit price is lower than the buy order’s limit price.
+When two orders match, they may both be executed.
+
+Executing an Order - Executing an order means adding money to the seller’s account, creating a
+new position in the buyer’s account (if they did not already have one for this symbol), and
+adjusting the number of shares in both the buyer’s account to reflect the purchase their
+positions. As part of execution, the order’s status changes from “open” to “executed”.
+Note that the execution of both matching orders MUST be done atomically (including all
+parts: changing the seller’s account balance, changing buyer’s number of shares, and
+altering order status). When an order executes, a price must be determined (such that
+seller’s limit price ≤ execution price ≤ buyer’s limit price). We will define the execution
+price to be the price of the order that was open first – that is the one that has been open
+and waiting for a match.
+
+Canceling an Order - A user may cancel an open order. Once an order is canceled, it MUST NOT
+match with any other orders and MUST NOT execute. Canceling a Buy order refunds the
+purchase price to the buyer’s account. Canceling a Sell order returns the shares to the
+seller’s account.
+
+
+There are some command we support in this project.
+<create> could create an account or symbol in the database.
+	 <account id="ACCOUNT_ID" balance="BALANCE"> should use with amount and id.
+	 This id shoul be unique, server will not generate it for you.
+	 <symbol sym="SYMBOL"> should use with sym which specify its name
+	 	  <account id="ACCOUNT_ID"> used under symbol tag to specify
+		  which account wants to create symbols. The value of it specify the number of symbols.
+<transaction id="ACCOUNT_ID"> could do order or query or cancel an order.
+	      <order sym="SYMBOL" amount="AMT" limit="LMT"> order an order.
+	      If limit is negative, this means you want to sell a position.
+	      If it is positive, it means you want to buy a position.
+	      <query id="TRANS_ID"> you should give an order id to query orders,
+	      the order id will be given to you when <order>.
+	      <cancel id="TRANS_ID"> cancel an order.
+	      
+This project is consist of 3 part:1.Database Interface 2.Socket server 3.server logic 4. xml parser
+
+1. Database Interface: Implemented in dbinterface, using pqxx library to interact with postgres database.
+2. Socket server: Implemented in server, using socket library to handle TCP/IP connection.
+3. server logic: Implemented in exchangeserver, handle all the logic
+4. xml parser: Implemented in XMLParser, using rapidxml to parse and generate xml.
+
+Appendix:
+===========================================
+CREATE
+
+Requests:
+<create>
+	<account id="ACCOUNT_ID" balance="BALANCE"/> #0 or more
+	<symbol sym="SYM"> #0 or more
+		<account id="ACCOUNT_ID">NUM</account> #1 or more
+	</symbol>
+</create>
+
+Responses:
+
+<results>
+	<created id="ACCOUNT_ID"/> #For account create
+	<created sym="SYM" id="ACCOUNT_ID"/> #For symbol create
+	<error id="ACCOUNT_ID">Msg</error> #For account create error
+	<error sym="SYM" id="ACCOUNT_ID">Msg</error> #For symbol create error
+</results>
+* Note all "created" and "error" tags appear in same order as corresponding "account" or
+"symbol+account" tags in the request
+
+===========================================
+TRANSACTIONS
+Requests:
+
+<transactions id="ACCOUNT_ID"> #contains 1 or more of the below children
+	      <order sym="SYM" amount="AMT" limit="LMT"/>
+	      <query id="TRANS_ID">
+	      <cancel id="TRANS_ID">
+</transactions>
+
+Responses:
+
+<results>
+	<opened sym="SYM" amount="AMT" limit="LMT" id="TRANS_ID"/>
+	<error sym="SYM" amount="AMT" limit="LMT">Message</error>
+	#Note there is 1 error for every order/query/cancel of the transactions
+	tag if ID is invalid
+	<status id="TRANS_ID">
+		<open shares=.../>
+		<canceled shares=... time=.../>
+		<executed shares=... price=... time=.../>
+	</status>
+	<canceled id="TRANS_ID">
+		  <canceled shares=... time=.../>
+		  <executed shares=... price=... time=.../>
+	</canceled>
+</results>
+
+* Note all opened or status or canceled or error tags appear in same order as
+corresponding order or query or cancel tags in the request.
