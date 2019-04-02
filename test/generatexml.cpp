@@ -99,7 +99,7 @@ int GENERATEXML::getFD() { return sockfd; }
  *
  */
 GENERATEXML::GENERATEXML(const char *h, const char *p) : port(p) {
-  hostname = h;
+  hostname = getHost(h);
   error = 0;
   addrinfo host_info;
   addrinfo *host_info_list;
