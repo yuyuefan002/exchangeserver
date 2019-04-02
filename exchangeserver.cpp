@@ -130,8 +130,8 @@ void EXCHANGESERVER::create_order(
   std::string amount =
       amount_p <= 0 ? std::to_string(-amount_p) : attrs["amount"].second;
   bool sell = amount_p <= 0 ? true : false;
-  if (!are_digits(attrs["amount"].second))
-    errorTag(resultroot, "Invalid amount");
+  if (!are_digits(attrs["limit"].second))
+    errorTag(resultroot, "Invalid limit");
   // match orders
   int status = match(account_id, attrs["sym"].second, amount,
                      attrs["limit"].second, sell);
