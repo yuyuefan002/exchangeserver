@@ -99,7 +99,6 @@ int GENERATEXML::getFD() { return sockfd; }
  *
  */
 GENERATEXML::GENERATEXML(const char *h, const char *p) : port(p) {
-  //hostname = getHost(h);
   hostname = h;
   error = 0;
   addrinfo host_info;
@@ -132,51 +131,78 @@ void client_func(const char* hostname, const char* port_num, std::ofstream &myfi
   auto start = high_resolution_clock::now(); 
   GENERATEXML generatexml(hostname,port_num);
 
-  srand (time(NULL));
+  srand ((unsigned int)time(NULL)+0);
   /* generate secret number between 1 and 10: */
   int iSecret = rand() % 5 + 1;
   std::string str;
+  //iSecret = 4;
   switch(iSecret){
   case 1:
-    str = "165\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"123457\" balance=\"10000\"/>\n<symbol sym=\"SPY\">\n<account id=\"123456\">1000000</account>\n</symbol>\n</create>\n";
+    str = "165\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<create>\n"
+      "<account id=\"123457\" balance=\"10000\"/>\n"
+      "<symbol sym=\"SPY\">\n"
+      "<account id=\"123456\">1000000</account>\n"
+      "</symbol>\n"
+      "</create>\n";
     break;
 
   case 2:
     str =
-      "159\n<?xml version=\"1.0\" "
-      "encoding=\"UTF-8\"?>\n<create>\n<account "
-      "id=\"6789\" balance=\"3000\"/>\n<symbol sym=\"USD\">\n<account "
-      "id=\"6789\">100000</account>\n</symbol>\n</create>\n";
+      "159\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<create>\n<account id=\"6789\" balance=\"3000\"/>\n"
+      "<symbol sym=\"USD\">\n"
+      "<account id=\"6789\">100000</account>\n"
+      "</symbol>\n"
+      "</create>\n";
     break;
 
   case 3:
     str =
-      "137\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<transactions id=\"2\">\n<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n<query id=\"1\"/>\n</transactions>\n";
+      "137\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<transactions id=\"2\">\n"
+      "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
+      "<query id=\"1\"/>\n"
+      "</transactions>\n";
     break;
 
     
   case 4:
     str =
-      "138\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<transactions id=\"1\">\n<order sym=\"BIT\" amount=\"-100\" limit=\"100\"/>\n<query id=\"1\"/>\n</transactions>\n";
+      "138\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<transactions id=\"1\">\n"
+      "<order sym=\"BIT\" amount=\"-100\" limit=\"100\"/>\n"
+      "<query id=\"1\"/>\n"
+      "</transactions>\n";
     break;
 
   default:
     str =
-      "154\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<transactions id=\"2\">\n<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n<query id=\"1\"/>\n<cancel id=\"1\"/>\n</transactions>\n";
+      "154\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<transactions id=\"2\">\n"
+      "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
+      "<query id=\"1\"/>\n"
+      "<cancel id=\"1\"/>\n"
+      "</transactions>\n";
   }
-  std::cout<<iSecret<<std::endl;
+  //std::cout<<iSecret<<std::endl;
   std::vector<char> s(str.begin(), str.end());
+  //for(int i = 0;i<200;i++){
   generatexml.Send(s);
-  std::vector<char> test = generatexml.recvServeResponse();
-  std::cout<<test.data()<<std::endl;
+  //}
   
+  //for(int i = 0;i<200;i++){
+  std::vector<char> test = generatexml.recvServeResponse();
+  //std::cout<<test.data()<<std::endl;
+  //}
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
-  myfile
-    //<< "Time taken by function: "
-    << duration.count()<<std::endl;
-    //<< " microseconds" << std::endl;
-  //std::cout<<"-------------------"<<std::endl;
+  
+  //myfile
+  //<< "Time taken by function: "
+  //<< duration.count()<<std::endl;
+  //<< " microseconds" << std::endl;
+  
 }
 
 void create_account_helper(std::string str,const char* hostname, const char* port_num){
@@ -187,9 +213,23 @@ void create_account_helper(std::string str,const char* hostname, const char* por
 }
 
 void client_create_account(const char* hostname, const char* port_num){
-  std::string str = "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"2\" balance=\"10000\"/>\n<symbol sym=\"BIT\">\n<account id=\"2\">1000000</account>\n</symbol>\n</create>\n";
+  std::string str =
+    "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+    "<create>\n"
+    "<account id=\"2\" balance=\"10000\"/>\n"
+    "<symbol sym=\"BIT\">\n"
+    "<account id=\"2\">1000000</account>\n"
+    "</symbol>\n"
+    "</create>\n";
   create_account_helper(str,hostname,port_num);
-  str = "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"1\" balance=\"10000\"/>\n<symbol sym=\"BIT\">\n<account id=\"2\">1000000</account>\n</symbol>\n</create>\n";
+  str =
+    "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+    "<create>\n"
+    "<account id=\"1\" balance=\"10000\"/>\n"
+    "<symbol sym=\"BIT\">\n"
+    "<account id=\"2\">1000000</account>\n"
+    "</symbol>\n"
+    "</create>\n";
   create_account_helper(str,hostname,port_num);
 }
 int main(int argc, char**argv) {
@@ -199,8 +239,24 @@ int main(int argc, char**argv) {
   }
   std::ofstream myfile;
   myfile.open ("output.txt",std::ios::out);
-  int i =2000;
+  int i = 2000;
 
+  std::vector<std::thread> pool;
+
+  client_create_account(argv[1],argv[2]);
+  auto start = high_resolution_clock::now(); 
+
+  
+  for(int j = 0;j < i;j++){
+    std::thread t = std::thread(client_func,argv[1],argv[2], std::ref(myfile));
+    pool.push_back(std::move(t));
+  }
+
+  for(std::thread& t: pool){
+    t.join();
+  }
+
+  /*
   client_create_account(argv[1],argv[2]);
   auto start = high_resolution_clock::now(); 
 
@@ -210,7 +266,7 @@ int main(int argc, char**argv) {
     t.join();
     --i;
   }
-
+  */
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
   myfile

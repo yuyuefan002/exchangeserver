@@ -24,7 +24,8 @@ int main(int argc, char **argv) {
     t[i++] = std::thread(server_func, newfd);
     if (i == 100) {
       for (int j = 0; j < 100; j++)
-        t[j].join();
+	//t[j].detach();
+	t[j].join();
       i = 0;
     }
     // t.detach();
