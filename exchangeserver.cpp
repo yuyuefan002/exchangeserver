@@ -87,31 +87,34 @@ bool are_digits(const std::string &str) {
  * throw exception
  */
 void EXCHANGESERVER::xml_handler(std::vector<char> &xml) {
-  XMLPARSER XMLParser(xml);
-  rapidxml::xml_node<> *resultroot =
-      doc.allocate_node(rapidxml::node_element, "results");
-  doc.append_node(resultroot);
-  rapidxml::xml_node<> *root = XMLParser.getNode();
-  for (rapidxml::xml_node<> *curr = root; curr != nullptr;
-       curr = curr->next_sibling()) {
-    std::string name = curr->name();
-    // create order or position
-    if (name == "create") {
-      create_handler(curr->first_node(), resultroot);
+  try {
+    XMLPARSER XMLParser(xml);
+    rapidxml::xml_node<> *resultroot =
+        doc.allocate_node(rapidxml::node_element, "results");
+    doc.append_node(resultroot);
+    rapidxml::xml_node<> *root = XMLParser.getNode();
+    for (rapidxml::xml_node<> *curr = root; curr != nullptr;
+         curr = curr->next_sibling()) {
+      std::string name = curr->name();
+      // create order or position
+      if (name == "create") {
+        create_handler(curr->first_node(), resultroot);
+      }
+      // query or order or cancel
+      else if (name == "transactions") {
+        std::unordered_map<std::string, std::pair<const char *, const char *>>
+            attrs = XMLParser.getAttrs(curr);
+        if (!are_digits(attrs["id"].second))
+          errorTag(resultroot, "Invalid accound id");
+        transaction_handler(curr->first_node(), attrs["id"].second, resultroot);
+      }
+      // other tags are invalid
+      else {
+        errorTag(resultroot, "Invalid tag");
+      }
     }
-    // query or order or cancel
-    else if (name == "transactions") {
-      std::unordered_map<std::string, std::pair<const char *, const char *>>
-          attrs = XMLParser.getAttrs(curr);
-      if (!are_digits(attrs["id"].second))
-        errorTag(resultroot, "Invalid accound id");
-      transaction_handler(curr->first_node(), attrs["id"].second, resultroot);
-    }
-
-    // other tags are invalid
-    else {
-      errorTag(resultroot, "Invalid tag");
-    }
+  } catch (std::exception &e) {
+    return;
   }
 }
 
