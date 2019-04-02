@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <fstream>
 using namespace std::chrono;
 
 int GENERATEXML::sendall(int fd, const char *buf, size_t *len) {
@@ -126,14 +127,14 @@ GENERATEXML::GENERATEXML(const char *h, const char *p) : port(p) {
 }
 GENERATEXML::~GENERATEXML() { close(sockfd); }
 
-void client_func(const char* hostname, const char* port_num){
-  std::cout<<"-------------------"<<std::endl;
+void client_func(const char* hostname, const char* port_num, std::ofstream &myfile){
+  //std::cout<<"-------------------"<<std::endl;
   auto start = high_resolution_clock::now(); 
   GENERATEXML generatexml(hostname,port_num);
 
   srand (time(NULL));
   /* generate secret number between 1 and 10: */
-  int iSecret = rand() % 4 + 1;
+  int iSecret = rand() % 5 + 1;
   std::string str;
   switch(iSecret){
   case 1:
@@ -149,9 +150,16 @@ void client_func(const char* hostname, const char* port_num){
     break;
 
   case 3:
-    str = "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"2\" balance=\"10000\"/>\n<symbol sym=\"BIT\">\n<account id=\"2\">1000000</account>\n</symbol>\n</create>\n";
+    str =
+      "137\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<transactions id=\"2\">\n<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n<query id=\"1\"/>\n</transactions>\n";
     break;
+
     
+  case 4:
+    str =
+      "138\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<transactions id=\"1\">\n<order sym=\"BIT\" amount=\"-100\" limit=\"100\"/>\n<query id=\"1\"/>\n</transactions>\n";
+    break;
+
   default:
     str =
       "154\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<transactions id=\"2\">\n<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n<query id=\"1\"/>\n<cancel id=\"1\"/>\n</transactions>\n";
@@ -164,30 +172,51 @@ void client_func(const char* hostname, const char* port_num){
   
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
-  std::cout << "Time taken by function: "
-  << duration.count() << " microseconds" << std::endl;
-    std::cout<<"-------------------"<<std::endl;
+  myfile
+    //<< "Time taken by function: "
+    << duration.count()<<std::endl;
+    //<< " microseconds" << std::endl;
+  //std::cout<<"-------------------"<<std::endl;
 }
 
+void create_account_helper(std::string str,const char* hostname, const char* port_num){
+  GENERATEXML generatexml(hostname,port_num);
+  std::vector<char> s(str.begin(), str.end());
+  generatexml.Send(s);
+  std::vector<char> test = generatexml.recvServeResponse();
+}
+
+void client_create_account(const char* hostname, const char* port_num){
+  std::string str = "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"2\" balance=\"10000\"/>\n<symbol sym=\"BIT\">\n<account id=\"2\">1000000</account>\n</symbol>\n</create>\n";
+  create_account_helper(str,hostname,port_num);
+  str = "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<create>\n<account id=\"1\" balance=\"10000\"/>\n<symbol sym=\"BIT\">\n<account id=\"2\">1000000</account>\n</symbol>\n</create>\n";
+  create_account_helper(str,hostname,port_num);
+}
 int main(int argc, char**argv) {
   if (argc != 3) {
     std::cerr << "Syntax: client <hostname>\n" << std::endl;
     return 1;
   }
-  int i =10;
-  std::cout<<"Total threads: "<<i<<std::endl;
+  std::ofstream myfile;
+  myfile.open ("output.txt",std::ios::out);
+  int i =2000;
+
+  client_create_account(argv[1],argv[2]);
   auto start = high_resolution_clock::now(); 
-  while(i!=0){  
-    std::thread t = std::thread(client_func,argv[1],argv[2]);
-    std::cout<<"Thread id : "<<t.get_id()<<std::endl;
+
+  
+  while(i!=0){
+    std::thread t = std::thread(client_func,argv[1],argv[2], std::ref(myfile));
     t.join();
     --i;
   }
 
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
-  std::cout << "Total function: "
-	    << duration.count() << " microseconds" << std::endl;
-
+  myfile
+    //<< "Total function: "
+    << duration.count()<<std::endl;
+    //<< " microseconds" << std::endl;
+  myfile.close();
   return EXIT_SUCCESS;
 }
