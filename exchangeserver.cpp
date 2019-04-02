@@ -125,16 +125,16 @@ void EXCHANGESERVER::create_order(
     std::unordered_map<std::string, std::pair<const char *, const char *>>
         attrs,
     rapidxml::xml_node<> *resultroot) {
-  double number_p = stod(std::string(attrs["limit"].second));
+  double amount_p = stod(std::string(attrs["amount"].second));
   // if sell a position, limit will be negative
-  std::string price =
-      number_p <= 0 ? std::to_string(-number_p) : attrs["limit"].second;
-  bool sell = number_p <= 0 ? true : false;
+  std::string amount =
+      amount_p <= 0 ? std::to_string(-amount_p) : attrs["amount"].second;
+  bool sell = amount_p <= 0 ? true : false;
   if (!are_digits(attrs["amount"].second))
     errorTag(resultroot, "Invalid amount");
   // match orders
-  int status = match(account_id, attrs["sym"].second, attrs["amount"].second,
-                     price, sell);
+  int status = match(account_id, attrs["sym"].second, amount,
+                     attrs["limit"].second, sell);
   XMLPARSER XMLParser;
   if (status == -1) {
     char *name = doc.allocate_string("error");
