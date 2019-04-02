@@ -157,8 +157,8 @@ bool amount_is_enough(pqxx::connection *C, const std::string &account_id,
   if (R.empty())
     return false;
   auto c = R.begin();
-  int share = c["SHARE"].as<int>();
-  return share >= stoi(number);
+  double share = c["SHARE"].as<double>();
+  return share >= stod(number);
 }
 
 /*
@@ -176,8 +176,8 @@ bool balance_is_enough(pqxx::connection *C, const std::string &account_id,
   if (R.empty())
     return false;
   auto c = R.begin();
-  int balance = c["BALANCE"].as<int>();
-  return balance >= stoi(number) * stoi(price);
+  double balance = c["BALANCE"].as<double>();
+  return balance >= stod(number) * stod(price);
 }
 /*
  * create_order
