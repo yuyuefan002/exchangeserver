@@ -13,3 +13,12 @@ We found a strange phenomenon, when we used 2 cores, we got the best performance
 worst performance. Why? It is contrast to our common sense. After we realizing the problem 1, we found a way to eaplain
 problem 2. When we assigning 4 cores to server, there is no idle core for client program, therefore, client program must
 scramble for resouces with server, which cause server run slower.
+
+
+Performance Problem:
+We came up with two solution:1.create thread per request 2. pre-create thread
+Theoratically, the time to create thread will be in the critical path, therefore, the performance will not as good as pre-create thread.
+However, in the actual situation, we didn't have a good implementation to solve the contention in pre-create thread. We used a queue to store
+currect tasks, each thread would check this queue to fetch any available task. Std::queue is not a thread-safe data structure, therefore, we locked
+the critical section(fetch the front of queue and pop it). According to the result, this part lead to a contension which made sever slow extremely.
+Therefore, we are still using the first solution.
