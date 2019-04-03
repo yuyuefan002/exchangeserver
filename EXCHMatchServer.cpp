@@ -3,6 +3,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#define THREAD_NUM 1000
 std::mutex q_mtx;
 std::queue<int> clients;
 void server_func() {
@@ -32,8 +33,8 @@ int main(int argc, char **argv) {
   if (Server.DBinitializer() == -1) {
     fprintf(stderr, "failed to initialize database\n");
   }
-  std::thread t[100];
-  for (int i = 0; i < 100; i++)
+  std::thread t[THREAD_NUM];
+  for (int i = 0; i < THREAD_NUM; i++)
     t[i] = std::thread(server_func);
 
   while (1) {
@@ -42,7 +43,7 @@ int main(int argc, char **argv) {
     clients.push(newfd);
     // t.detach();
   }
-  for (int j = 0; j < 100; j++)
+  for (int j = 0; j < THREAD_NUM; j++)
     t[j].join();
   return EXIT_SUCCESS;
 }
