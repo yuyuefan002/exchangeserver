@@ -3,3 +3,13 @@
 3.When given a id to query, we should check whether this id is exist.
 4.In the client code, we create an order and directly wait for it, so that we serialized our request
 5.After we create a thread, we detach it. when main function end, all threads end no matter it ends or not.
+
+Huge Test Problem:
+In the first version of our testing function, there are several problems worth noting:
+1. call thread.join() immediately after we create the thread, which means we only create a thread(make a request)
+after we finish the previous one. Therefore we serialize our requests.
+2. Using the multi-thread program described in 1., we run our test program on the same machine where sever runs.
+We found a strange phenomenon, when we used 2 cores, we got the best performance. When we used 4 cores, we got the
+worst performance. Why? It is contrast to our common sense. After we realizing the problem 1, we found a way to eaplain
+problem 2. When we assigning 4 cores to server, there is no idle core for client program, therefore, client program must
+scramble for resouces with server, which cause server run slower.
