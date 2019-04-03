@@ -367,6 +367,9 @@ void EXCHANGESERVER::handler(int newfd) {
   std::vector<char> xml = server.receiveData(newfd);
   xml_handler(xml);
   std::vector<char> response = genResponse();
+  int size = response.size();
+  std::string s = std::to_string(size) + '\n';
+  response.insert(response.begin(), s.begin(), s.end());
   server.sendData(newfd, response);
 }
 EXCHANGESERVER::EXCHANGESERVER(const char *port) : server(port) {}

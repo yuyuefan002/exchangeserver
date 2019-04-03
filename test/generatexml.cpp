@@ -1,14 +1,14 @@
 #include "generatexml.h"
-#include <stdio.h>      /* printf, scanf, puts, NULL */
-#include <stdlib.h>     /* srand, rand */
-#include <time.h> 
-#include <string>
-#include <vector>
-#include <thread>
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <stdio.h>  /* printf, scanf, puts, NULL */
+#include <stdlib.h> /* srand, rand */
+#include <string>
+#include <thread>
+#include <time.h>
+#include <vector>
 using namespace std::chrono;
 
 int GENERATEXML::sendall(int fd, const char *buf, size_t *len) {
@@ -23,11 +23,11 @@ int GENERATEXML::sendall(int fd, const char *buf, size_t *len) {
     total += n;
     bytesleft -= n;
   }
-  *len = total; // return number actually sent here
+  *len = total;            // return number actually sent here
   return n == -1 ? -1 : 0; // return -1 on failure, 0 on success
 }
 
-const char * GENERATEXML::getHost(const char *hostname) {
+const char *GENERATEXML::getHost(const char *hostname) {
   struct hostent *he = gethostbyname(hostname);
   if (he == nullptr)
     throw std::string("no host");
@@ -112,12 +112,12 @@ GENERATEXML::GENERATEXML(const char *h, const char *p) : port(p) {
       throw std::string("getaddrinfo");
 
     sockfd = socket(host_info_list->ai_family, host_info_list->ai_socktype,
-		    host_info_list->ai_protocol);
+                    host_info_list->ai_protocol);
     if (sockfd == -1)
       throw std::string("socket");
 
     if ((connect(sockfd, host_info_list->ai_addr,
-		 host_info_list->ai_addrlen)) == -1)
+                 host_info_list->ai_addrlen)) == -1)
       throw std::string("connect");
   } catch (std::string e) {
     error = 1;
@@ -126,141 +126,135 @@ GENERATEXML::GENERATEXML(const char *h, const char *p) : port(p) {
 }
 GENERATEXML::~GENERATEXML() { close(sockfd); }
 
-void client_func(const char* hostname, const char* port_num, std::ofstream &myfile){
-  //std::cout<<"-------------------"<<std::endl;
-  auto start = high_resolution_clock::now(); 
-  GENERATEXML generatexml(hostname,port_num);
+void client_func(const char *hostname, const char *port_num,
+                 std::ofstream &myfile) {
+  // std::cout<<"-------------------"<<std::endl;
+  auto start = high_resolution_clock::now();
+  GENERATEXML generatexml(hostname, port_num);
 
-  srand ((unsigned int)time(NULL)+0);
+  srand((unsigned int)time(NULL) + 0);
   /* generate secret number between 1 and 10: */
   int iSecret = rand() % 5 + 1;
   std::string str;
-  //iSecret = 4;
-  switch(iSecret){
+  // iSecret = 4;
+  switch (iSecret) {
   case 1:
     str = "165\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<create>\n"
-      "<account id=\"123457\" balance=\"10000\"/>\n"
-      "<symbol sym=\"SPY\">\n"
-      "<account id=\"123456\">1000000</account>\n"
-      "</symbol>\n"
-      "</create>\n";
+          "<create>\n"
+          "<account id=\"123457\" balance=\"10000\"/>\n"
+          "<symbol sym=\"SPY\">\n"
+          "<account id=\"123456\">1000000</account>\n"
+          "</symbol>\n"
+          "</create>\n";
     break;
 
   case 2:
-    str =
-      "159\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<create>\n<account id=\"6789\" balance=\"3000\"/>\n"
-      "<symbol sym=\"USD\">\n"
-      "<account id=\"6789\">100000</account>\n"
-      "</symbol>\n"
-      "</create>\n";
+    str = "159\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+          "<create>\n<account id=\"6789\" balance=\"3000\"/>\n"
+          "<symbol sym=\"USD\">\n"
+          "<account id=\"6789\">100000</account>\n"
+          "</symbol>\n"
+          "</create>\n";
     break;
 
   case 3:
-    str =
-      "137\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<transactions id=\"2\">\n"
-      "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
-      "<query id=\"1\"/>\n"
-      "</transactions>\n";
+    str = "137\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+          "<transactions id=\"2\">\n"
+          "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
+          "<query id=\"1\"/>\n"
+          "</transactions>\n";
     break;
 
-    
   case 4:
-    str =
-      "138\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<transactions id=\"1\">\n"
-      "<order sym=\"BIT\" amount=\"-100\" limit=\"100\"/>\n"
-      "<query id=\"1\"/>\n"
-      "</transactions>\n";
+    str = "138\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+          "<transactions id=\"1\">\n"
+          "<order sym=\"BIT\" amount=\"-100\" limit=\"100\"/>\n"
+          "<query id=\"1\"/>\n"
+          "</transactions>\n";
     break;
 
   default:
-    str =
-      "154\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<transactions id=\"2\">\n"
-      "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
-      "<query id=\"1\"/>\n"
-      "<cancel id=\"1\"/>\n"
-      "</transactions>\n";
+    str = "154\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+          "<transactions id=\"2\">\n"
+          "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
+          "<query id=\"1\"/>\n"
+          "<cancel id=\"1\"/>\n"
+          "</transactions>\n";
   }
-  //std::cout<<iSecret<<std::endl;
+  // std::cout<<iSecret<<std::endl;
   std::vector<char> s(str.begin(), str.end());
-  //for(int i = 0;i<200;i++){
+  // for(int i = 0;i<200;i++){
   generatexml.Send(s);
   //}
-  
-  //for(int i = 0;i<200;i++){
+
+  // for(int i = 0;i<200;i++){
   std::vector<char> test = generatexml.recvServeResponse();
-  //std::cout<<test.data()<<std::endl;
+  // std::cout<<test.data()<<std::endl;
   //}
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
-  
-  //myfile
+
+  // myfile
   //<< "Time taken by function: "
   //<< duration.count()<<std::endl;
   //<< " microseconds" << std::endl;
-  
 }
 
-void create_account_helper(std::string str,const char* hostname, const char* port_num){
-  GENERATEXML generatexml(hostname,port_num);
+void create_account_helper(std::string str, const char *hostname,
+                           const char *port_num) {
+  GENERATEXML generatexml(hostname, port_num);
   std::vector<char> s(str.begin(), str.end());
   generatexml.Send(s);
   std::vector<char> test = generatexml.recvServeResponse();
 }
 
-void client_create_account(const char* hostname, const char* port_num){
-  std::string str =
-    "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-    "<create>\n"
-    "<account id=\"2\" balance=\"10000\"/>\n"
-    "<symbol sym=\"BIT\">\n"
-    "<account id=\"2\">1000000</account>\n"
-    "</symbol>\n"
-    "</create>\n";
-  create_account_helper(str,hostname,port_num);
-  str =
-    "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-    "<create>\n"
-    "<account id=\"1\" balance=\"10000\"/>\n"
-    "<symbol sym=\"BIT\">\n"
-    "<account id=\"2\">1000000</account>\n"
-    "</symbol>\n"
-    "</create>\n";
-  create_account_helper(str,hostname,port_num);
+void client_create_account(const char *hostname, const char *port_num) {
+  std::string str = "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                    "<create>\n"
+                    "<account id=\"2\" balance=\"10000\"/>\n"
+                    "<symbol sym=\"BIT\">\n"
+                    "<account id=\"2\">1000000</account>\n"
+                    "</symbol>\n"
+                    "</create>\n";
+  create_account_helper(str, hostname, port_num);
+  str = "155\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<create>\n"
+        "<account id=\"1\" balance=\"10000\"/>\n"
+        "<symbol sym=\"BIT\">\n"
+        "<account id=\"2\">1000000</account>\n"
+        "</symbol>\n"
+        "</create>\n";
+  create_account_helper(str, hostname, port_num);
 }
-int main(int argc, char**argv) {
+int main(int argc, char **argv) {
   if (argc != 3) {
     std::cerr << "Syntax: client <hostname>\n" << std::endl;
     return 1;
   }
   std::ofstream myfile;
-  myfile.open ("output.txt",std::ios::out);
-  int i = 2000;
+  myfile.open("output.txt", std::ios::out);
+  int i = 50;
 
   std::vector<std::thread> pool;
 
-  client_create_account(argv[1],argv[2]);
-  auto start = high_resolution_clock::now(); 
+  client_create_account(argv[1], argv[2]);
+  auto start = high_resolution_clock::now();
 
-  
-  for(int j = 0;j < i;j++){
-    std::thread t = std::thread(client_func,argv[1],argv[2], std::ref(myfile));
+  for (int j = 0; j < i; j++) {
+    std::thread t =
+        std::thread(client_func, argv[1], argv[2], std::ref(myfile));
     pool.push_back(std::move(t));
   }
 
-  for(std::thread& t: pool){
+  for (std::thread &t : pool) {
     t.join();
   }
 
   /*
   client_create_account(argv[1],argv[2]);
-  auto start = high_resolution_clock::now(); 
+  auto start = high_resolution_clock::now();
 
-  
+
   while(i!=0){
     std::thread t = std::thread(client_func,argv[1],argv[2], std::ref(myfile));
     t.join();
@@ -270,9 +264,9 @@ int main(int argc, char**argv) {
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
   myfile
-    //<< "Total function: "
-    << duration.count()<<std::endl;
-    //<< " microseconds" << std::endl;
+      //<< "Total function: "
+      << duration.count() << std::endl;
+  //<< " microseconds" << std::endl;
   myfile.close();
   return EXIT_SUCCESS;
 }
