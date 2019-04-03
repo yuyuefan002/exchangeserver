@@ -1,10 +1,26 @@
 #include "exchangeserver.h"
+#include <mutex>
+#include <queue>
 #include <thread>
 #include <vector>
-void server_func(int newfd) {
-  EXCHANGESERVER Server;
-  Server.handler(newfd);
-  close(newfd);
+std::mutex q_mtx;
+std::queue<int> clients;
+void server_func() {
+  while (1) {
+    while (clients.empty()) {
+    }
+    q_mtx.lock();
+    if (clients.empty()) {
+      q_mtx.unlock();
+      continue;
+    }
+    int newfd = clients.front();
+    clients.pop();
+    q_mtx.unlock();
+    EXCHANGESERVER Server;
+    Server.handler(newfd);
+    close(newfd);
+  }
 }
 
 int main(int argc, char **argv) {
@@ -17,18 +33,16 @@ int main(int argc, char **argv) {
     fprintf(stderr, "failed to initialize database\n");
   }
   std::thread t[100];
-  int i = 0;
+  for (int i = 0; i < 100; i++)
+    t[i] = std::thread(server_func);
+
   while (1) {
     int newfd = Server.accNewRequest();
     // server_func(newfd);
-    t[i++] = std::thread(server_func, newfd);
-    if (i == 100) {
-      for (int j = 0; j < 100; j++)
-        // t[j].detach();
-        t[j].join();
-      i = 0;
-    }
+    clients.push(newfd);
     // t.detach();
   }
+  for (int j = 0; j < 100; j++)
+    t[j].join();
   return EXIT_SUCCESS;
 }
