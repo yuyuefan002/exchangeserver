@@ -1,0 +1,11 @@
+1.  RUN basic.sh to check server works or not(using nc, change hostname and port as you wish)
+2.  RUN attck.sh to check whether there is a stack overflow problem
+    (using nc, change hostname and port as you wish)
+3.  MAKE GenerateXML program to do performance test
+    There are two macro inside the main cpp to define the thread number and
+    request per thread. The total running time will be output into output.txt
+    Each time you run test output.txt will be overwritten.
+    All requests are randomly generated, the total running time will vary a lot.
+    This is because there is a lock on critical path on <order> while others not.
+    When thread number is equal or larger than 200, the test program might be stuck.
+    

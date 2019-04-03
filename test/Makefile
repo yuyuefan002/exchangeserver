@@ -8,4 +8,4 @@ GenerateXML:$(OBJS)
 	$(CC) $(CFLAGS) -c $<
 .PHONY: clean
 clean:
-	rm -f GenerateXML *.o *~ a.out
+	rm -f GenerateXML *.o *~ a.out output.txt

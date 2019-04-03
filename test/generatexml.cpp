@@ -9,6 +9,8 @@
 #include <thread>
 #include <time.h>
 #include <vector>
+#define THREAD_NUM 50 // thread number
+#define REQUEST_NUM 1 // request number of pre thread
 using namespace std::chrono;
 
 int GENERATEXML::sendall(int fd, const char *buf, size_t *len) {
@@ -129,70 +131,73 @@ GENERATEXML::~GENERATEXML() { close(sockfd); }
 void client_func(const char *hostname, const char *port_num,
                  std::ofstream &myfile) {
   // std::cout<<"-------------------"<<std::endl;
-  auto start = high_resolution_clock::now();
-  GENERATEXML generatexml(hostname, port_num);
+  // auto start = high_resolution_clock::now();
+  int i = REQUEST_NUM;
+  while (i--) {
+    GENERATEXML generatexml(hostname, port_num);
 
-  srand((unsigned int)time(NULL) + 0);
-  /* generate secret number between 1 and 10: */
-  int iSecret = rand() % 5 + 1;
-  std::string str;
-  // iSecret = 4;
-  switch (iSecret) {
-  case 1:
-    str = "165\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-          "<create>\n"
-          "<account id=\"123457\" balance=\"10000\"/>\n"
-          "<symbol sym=\"SPY\">\n"
-          "<account id=\"123456\">1000000</account>\n"
-          "</symbol>\n"
-          "</create>\n";
-    break;
+    srand((unsigned int)time(NULL) + 0);
+    /* generate secret number between 1 and 10: */
+    int iSecret = rand() % 5 + 1;
+    std::string str;
+    // iSecret = 4;
+    switch (iSecret) {
+    case 1:
+      str = "165\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<create>\n"
+            "<account id=\"123457\" balance=\"10000\"/>\n"
+            "<symbol sym=\"SPY\">\n"
+            "<account id=\"123456\">1000000</account>\n"
+            "</symbol>\n"
+            "</create>\n";
+      break;
 
-  case 2:
-    str = "159\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-          "<create>\n<account id=\"6789\" balance=\"3000\"/>\n"
-          "<symbol sym=\"USD\">\n"
-          "<account id=\"6789\">100000</account>\n"
-          "</symbol>\n"
-          "</create>\n";
-    break;
+    case 2:
+      str = "159\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<create>\n<account id=\"6789\" balance=\"3000\"/>\n"
+            "<symbol sym=\"USD\">\n"
+            "<account id=\"6789\">100000</account>\n"
+            "</symbol>\n"
+            "</create>\n";
+      break;
 
-  case 3:
-    str = "137\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-          "<transactions id=\"2\">\n"
-          "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
-          "<query id=\"1\"/>\n"
-          "</transactions>\n";
-    break;
+    case 3:
+      str = "137\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<transactions id=\"2\">\n"
+            "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
+            "<query id=\"1\"/>\n"
+            "</transactions>\n";
+      break;
 
-  case 4:
-    str = "138\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-          "<transactions id=\"1\">\n"
-          "<order sym=\"BIT\" amount=\"-100\" limit=\"100\"/>\n"
-          "<query id=\"1\"/>\n"
-          "</transactions>\n";
-    break;
+    case 4:
+      str = "138\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<transactions id=\"1\">\n"
+            "<order sym=\"BIT\" amount=\"-100\" limit=\"100\"/>\n"
+            "<query id=\"1\"/>\n"
+            "</transactions>\n";
+      break;
 
-  default:
-    str = "154\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-          "<transactions id=\"2\">\n"
-          "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
-          "<query id=\"1\"/>\n"
-          "<cancel id=\"1\"/>\n"
-          "</transactions>\n";
+    default:
+      str = "154\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<transactions id=\"2\">\n"
+            "<order sym=\"BIT\" amount=\"100\" limit=\"100\"/>\n"
+            "<query id=\"1\"/>\n"
+            "<cancel id=\"1\"/>\n"
+            "</transactions>\n";
+    }
+    // std::cout<<iSecret<<std::endl;
+    std::vector<char> s(str.begin(), str.end());
+    // for(int i = 0;i<200;i++){
+    generatexml.Send(s);
+    //}
+
+    // for(int i = 0;i<200;i++){
+    std::vector<char> test = generatexml.recvServeResponse();
+    // std::cout<<test.data()<<std::endl;
+    //}
   }
-  // std::cout<<iSecret<<std::endl;
-  std::vector<char> s(str.begin(), str.end());
-  // for(int i = 0;i<200;i++){
-  generatexml.Send(s);
-  //}
-
-  // for(int i = 0;i<200;i++){
-  std::vector<char> test = generatexml.recvServeResponse();
-  // std::cout<<test.data()<<std::endl;
-  //}
-  auto stop = high_resolution_clock::now();
-  auto duration = duration_cast<microseconds>(stop - start);
+  // auto stop = high_resolution_clock::now();
+  // auto duration = duration_cast<microseconds>(stop - start);
 
   // myfile
   //<< "Time taken by function: "
@@ -233,7 +238,7 @@ int main(int argc, char **argv) {
   }
   std::ofstream myfile;
   myfile.open("output.txt", std::ios::out);
-  int i = 50;
+  int i = THREAD_NUM;
 
   std::vector<std::thread> pool;
 
